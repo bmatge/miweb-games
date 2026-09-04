@@ -213,15 +213,20 @@
   // snake
   c = toile("vig-snake");
   P.damier(c, 0, 18, 320, 162, 40, "#000091", "#000082");
-  [[44,102,"#18753C"],[84,102,"#0078a8"],[124,102,"#6a2ea0"],[124,62,"#E1000F"]].forEach(([x, y, f]) => {
-    P.biseau(c, x, y, 30, 30, 4, f);
-    c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(x + .5, y + .5, 29, 29);
-  });
+  const CHEF = {chemise: "#FFCA00", cheveux: "#e9eaf2", cravate: "#161616", regard: "droite"};
+  const pers = (x, y, chemise, cheveux, peau) => {
+    c.fillStyle = "rgba(0,0,0,.28)"; c.fillRect(x + 6, y + 36, 28, 4);
+    P.personne(c, x + 6, y + 4, 28, {chemise, cheveux, peau});
+  };
+  pers(44, 102, "#18753C", "#4a2c14", "#d99a6b");
+  pers(84, 102, "#0078a8", "#c98b2a", "#f2b8a0");
+  pers(124, 102, "#6a2ea0", "#161616", "#8d5a3b");
+  pers(124, 62, "#E1000F", "#a3341b", "#f7d5b5");
   P.lueur(c, 179, 77, 36, "#FFCA00", .3);
-  P.tete(c, 164, 62, 30, {x:1, y:0}, true);
-  P.biseau(c, 244, 62, 30, 30, 4, "#000091");
-  c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(244.5, 62.5, 29, 29);
-  P.picto(c, "tech", 248, 66, 22, "#ffffff");
+  P.personne(c, 170, 66, 28, CHEF);
+  c.fillStyle = "#FFCA00";
+  [[243,61,8,2],[243,61,2,8],[267,61,8,2],[273,61,2,8],[243,91,8,2],[243,85,2,8],[267,91,8,2],[273,85,2,8]].forEach(r => c.fillRect(...r));
+  P.personne(c, 245, 64, 28, {chemise: "#000091", cheveux: "#2b2b6b", peau: "#f2b8a0"});
   P.biseau(c, 204, 142, 30, 30, 4, "#6b6b6b", true);
   P.picto(c, "dette", 210, 148, 18, "#2e2e2e");
   // validation
@@ -284,11 +289,13 @@
     // serpent qui traverse
     const CELL = 26, avance = (t / 110) % (EW - x0 + 12 * CELL);
     for(let i = 9; i >= 0; i--){
-      const x = x0 - 12 * CELL + avance - i * CELL, y = 22 + Math.round(Math.sin(t / 500 + i * .6) * 2) * 2;
-      if(i === 0){ P.lueur(ctx, x + CELL / 2, y + CELL / 2, CELL * 1.3, "#FFCA00", .3); P.tete(ctx, x + 1, y + 1, CELL - 2, {x:1, y:0}, Math.floor(t / 380) % 4 === 0); }
-      else {
-        P.biseau(ctx, x + 2, y + 2, CELL - 4, CELL - 4, CELL / 8, FAM[i % FAM.length]);
-        ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1; ctx.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
+      const x = x0 - 12 * CELL + avance - i * CELL, y = 18 + Math.round(Math.sin(t / 500 + i * .6) * 2) * 2;
+      if(i === 0){
+        P.lueur(ctx, x + CELL / 2, y + CELL / 2, CELL * 1.3, "#FFCA00", .3);
+        P.personne(ctx, x + 4, y + 2, CELL - 8, {chemise: "#FFCA00", cheveux: "#e9eaf2", cravate: "#161616", regard: "droite"});
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.fillRect(x + 5, y + CELL - 3, CELL - 10, 3);
+        P.personne(ctx, x + 4, y + 2, CELL - 8, {chemise: FAM[i % FAM.length], cheveux: P.CHEVEUX[i % P.CHEVEUX.length], peau: P.PEAUX[i % P.PEAUX.length]});
       }
     }
     // balle et barre

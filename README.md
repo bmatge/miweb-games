@@ -45,7 +45,10 @@ passe par `fillRect`. `Arcade.pix` expose les primitives partagées :
   sombre en bas/droite (`creux` inverse, pour les socles).
 - `picto(ctx, cle, …)` — six pictogrammes de famille en grille de **8×8** (tech, design,
   produit, contenu, qualité, data) plus la dette technique.
-- `tete(ctx, x, y, taille, dir, langue)` — tête du serpent 8×8, tournée selon le cap.
+- `personne(ctx, x, y, taille, look)` — un collègue vu de face, 8×10, chemise, cheveux, peau et
+  cravate paramétrables, regard à gauche ou à droite. C'est la file du snake : la tête de file a les
+  cheveux blancs et une cravate, chaque recrue tire son look à l'embauche (`lookAleatoire`).
+- `tete(ctx, x, y, taille, dir, langue)` — l'ancienne tête de serpent 8×8, conservée.
 - `agent(ctx, …)` (14×14, chemise paramétrable) et `balle(ctx, cx, cy, r)` (8×8).
 
 - `texte(ctx, txt, x, y, u, couleur, align)` — police pixel 5×7 maison (majuscules, chiffres,

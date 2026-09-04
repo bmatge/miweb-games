@@ -482,6 +482,77 @@
     });
   }
 
+  /* Personnage vu de face, 8 de large sur 10 de haut : cheveux H, peau P,
+     yeux N, chemise C, cravate T. Trois variantes selon le regard (gauche,
+     face, droite), pour que la tete de file regarde ou elle va. */
+  var PERSONNE = {
+    face: [
+      "..HHHH..",
+      ".HHHHHH.",
+      ".HPPPPH.",
+      ".HPNPNH.",
+      "..PPPP..",
+      ".CCTTCC.",
+      "CCCTTCCC",
+      "CCCCCCCC",
+      "CCCCCCCC",
+      ".CC..CC."],
+    gauche: [
+      "..HHHH..",
+      ".HHHHHH.",
+      ".HPPPPH.",
+      ".HNPNPH.",
+      "..PPPP..",
+      ".CCTTCC.",
+      "CCCTTCCC",
+      "CCCCCCCC",
+      "CCCCCCCC",
+      ".CC..CC."],
+    droite: [
+      "..HHHH..",
+      ".HHHHHH.",
+      ".HPPPPH.",
+      ".HPNPNH.",
+      "..PPPP..",
+      ".CCTTCC.",
+      "CCCTTCCC",
+      "CCCCCCCC",
+      "CCCCCCCC",
+      ".CC..CC."]
+  };
+  // Les yeux : ecartes de face, decales d'un pixel selon le regard.
+  PERSONNE.face[3] = ".HNPPNH.";
+  PERSONNE.gauche[3] = ".HNPNPH.";
+  PERSONNE.droite[3] = ".HPNPNH.";
+  var CHEVEUX = ["#161616", "#4a2c14", "#c98b2a", "#a3341b", "#6b6b6b", "#2b2b6b"];
+  var PEAUX = ["#f2b8a0", "#d99a6b", "#8d5a3b", "#f7d5b5"];
+
+  /**
+   * Personnage en (x, y), `taille` = largeur (la hauteur vaut 1,25 fois).
+   * `look` : {chemise, cheveux, peau, cravate, regard} ; `regard` vaut
+   * "gauche", "droite" ou rien. Sans cravate, les pixels T prennent la
+   * couleur de la chemise.
+   */
+  function personne(ctx, x, y, taille, look) {
+    look = look || {};
+    var g = PERSONNE[look.regard] || PERSONNE.face;
+    var chemise = look.chemise || "#ffffff";
+    grille(ctx, g, x, y, taille, {
+      H: look.cheveux || CHEVEUX[0],
+      P: look.peau || PEAUX[0],
+      N: "#161616",
+      C: chemise,
+      T: look.cravate || chemise
+    });
+  }
+  /** Un look aleatoire stable : a tirer une fois par personne, puis a garder. */
+  function lookAleatoire() {
+    return {
+      cheveux: CHEVEUX[Math.floor(Math.random() * CHEVEUX.length)],
+      peau: PEAUX[Math.floor(Math.random() * PEAUX.length)]
+    };
+  }
+
   /* Balle, 8x8 : jaune, reflet en haut a gauche, ombre en bas a droite. */
   var BALLE = [
     "..JJJJ..",
@@ -815,6 +886,7 @@
     MONO: MONO, SANS: SANS,
     grille: grille, biseau: biseau, picto: picto,
     tete: tete, agent: agent, balle: balle,
+    personne: personne, lookAleatoire: lookAleatoire, CHEVEUX: CHEVEUX, PEAUX: PEAUX,
     texte: texte, texteAjuste: texteAjuste, largeur: largeur,
     damier: damier, cadre: cadre, lueur: lueur
   };

@@ -68,6 +68,7 @@
       <div><i style="background:#E1000F"></i>Qualité et conformité</div>
       <div><i style="background:#0078a8"></i>Data</div>
       <div><i style="background:#6b6b6b"></i>Dette technique — mortelle</div>
+      <div><i style="background:#e9eaf2"></i>Cheveux blancs et cravate : c'est vous</div>
     </div>
 
     <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
@@ -170,6 +171,11 @@ const PALIERS = {
   4: "Palier 4. Trente. Vous dirigez une DSI, et ça se voit à la vitesse."
 };
 let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
+let stagiaires = [];               // looks des deux segments de depart, sans nom
+// Chaque case est une personne vue de face, 8 pixels de large sur 10 :
+// chemise a la couleur de la famille, cheveux et peau tires a l'embauche.
+const PERS_L = CELL - 8, PERS_H = PERS_L * 1.25, PERS_X = 4, PERS_Y = (CELL - PERS_H) / 2;
+const CHEF = {chemise: "#FFCA00", cheveux: "#e9eaf2", peau: "#f2b8a0", cravate: "#161616"};
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
 hudRecord.textContent = record;
@@ -259,7 +265,7 @@ function poserCible(){
   // Le prochain metier suit l'ordre de la liste : la progression traverse
   // toutes les familles plutot que de tirer deux fois le meme profil.
   const m = METIERS[recrutes.length];
-  cible = {x: c.x, y: c.y, nom: m[0], famille: m[1], quip: m[2]};
+  cible = {x: c.x, y: c.y, nom: m[0], famille: m[1], quip: m[2], look: pix.lookAleatoire()};
   hudCible.textContent = m[0];
 }
 
@@ -276,6 +282,7 @@ function poserDette(){
 
 function nouvellePartie(){
   serpent = [{x:6, y:10}, {x:5, y:10}, {x:4, y:10}];
+  stagiaires = [pix.lookAleatoire(), pix.lookAleatoire()];
   dir = {x:1, y:0}; filedir = [];
   dettes = []; recrutes = []; cible = null;
   vitesse = 7; accu = 0;
@@ -428,7 +435,7 @@ function avancer(){
 function recruter(){
   const m = cible;
   flashs.push({x: m.x, y: m.y, t: .22});
-  recrutes.push({nom: m.nom, famille: m.famille});
+  recrutes.push({nom: m.nom, famille: m.famille, look: cible.look});
   bip(560 + recrutes.length * 8, .07);
   log(m.quip);
   // Un quart de pas par recrue, plus un cran par palier.
@@ -519,30 +526,38 @@ function dessiner(){
     const px = cible.x * CELL, py = BANDEAU + cible.y * CELL;
     const pulse = 1 + Math.sin(performance.now() / 220) * .07;
     pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.4, f.fond === "#000091" ? "#ffffff" : f.fond, .28 * pulse);
-    const t = (CELL - 4) * pulse;
-    const x0 = px + (CELL - t) / 2, y0 = py + (CELL - t) / 2;
-    pix.biseau(ctx, x0, y0, t, t, t / 8, f.fond);
-    pix.picto(ctx, cible.famille, x0 + t / 8, y0 + t / 8, t * .75, f.texte);
+    // Le profil attend dans un cadre a coins, qui respire.
+    const e = 1 + Math.round(Math.sin(performance.now() / 220) * 1.5);
+    ctx.fillStyle = "#FFCA00";
+    const cx0 = px + 1 - e, cy0 = py + 1 - e, cl = CELL - 2 + 2 * e, ep = 2, lg = 7;
+    [[cx0, cy0, lg, ep], [cx0, cy0, ep, lg], [cx0 + cl - lg, cy0, lg, ep], [cx0 + cl - ep, cy0, ep, lg],
+     [cx0, cy0 + cl - ep, lg, ep], [cx0, cy0 + cl - lg, ep, lg], [cx0 + cl - lg, cy0 + cl - ep, lg, ep], [cx0 + cl - ep, cy0 + cl - lg, ep, lg]]
+      .forEach(r => ctx.fillRect(r[0], r[1], r[2], r[3]));
+    pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, {chemise: f.fond, cheveux: cible.look.cheveux, peau: cible.look.peau});
   }
 
   // equipe (serpent)
-  const langue = Math.floor(performance.now() / 380) % 4 === 0;
   for(let i = serpent.length - 1; i >= 0; i--){
     const s = serpent[i];
     const px = s.x * CELL, py = BANDEAU + s.y * CELL;
     if(i === 0){
+      // La tete de file : cheveux blancs, chemise jaune, cravate, et le
+      // regard tourne vers le cap.
       pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.3, "#FFCA00", .3);
-      pix.tete(ctx, px + 1, py + 1, CELL - 2, dir, langue && etat === "jeu");
+      pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, Object.assign({
+        regard: dir.x < 0 ? "gauche" : dir.x > 0 ? "droite" : null}, CHEF));
     } else {
-      // Le corps porte les couleurs des profils recrutes, du plus recent au
-      // plus ancien : l'equipe se lit dans le serpent lui-meme.
+      // La file porte les couleurs des profils recrutes, du plus recent au
+      // plus ancien : l'equipe se lit dans la file elle-meme. Les deux
+      // derniers sont les stagiaires du premier jour, en chemise blanche.
       const m = recrutes[recrutes.length - i];
       const f = m ? FAMILLES[m.famille] : null;
-      pix.biseau(ctx, px + 2, py + 2, CELL - 4, CELL - 4, u, f ? f.fond : "#ffffff");
-      // Liseré : la famille « technique » a la couleur du fond, sans lui ses
-      // segments n'existaient que par le biseau clair.
-      ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1;
-      ctx.strokeRect(px + 2.5, py + 2.5, CELL - 5, CELL - 5);
+      const look = m ? m.look : stagiaires[i - recrutes.length - 1] || stagiaires[0];
+      // Ombre au sol : la famille « technique » a la couleur du fond, sans
+      // elle ses membres flottaient dans le bleu.
+      ctx.fillStyle = "rgba(0,0,0,.28)";
+      ctx.fillRect(px + 5, py + CELL - 5, CELL - 10, 3);
+      pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, {chemise: f ? f.fond : "#ffffff", cheveux: look.cheveux, peau: look.peau});
     }
   }
 
