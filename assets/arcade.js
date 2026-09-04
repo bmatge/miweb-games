@@ -232,21 +232,67 @@
   /* ------------------------------------------------------------------ */
 
   /**
-   * Mesure ce qui entoure la scene (en-tete au-dessus, journal en dessous)
-   * et pose `--chrome` sur la scene. Le CSS en deduit la largeur maximale
-   * du plateau : `min(100%, (100dvh - chrome) * ratio)`. Sur un ecran large
-   * ou en paysage mobile, c'est la hauteur qui contraint — sans cette mesure
-   * le plateau prenait toute la largeur et le bas passait sous la ligne de
-   * flottaison, journal compris.
+   * Dimensionne la scene pour que le plateau tienne dans la fenetre, au-dessus
+   * de la ligne de flottaison. Deux modes, choisis par le CSS via `--mode` :
+   *
+   * - `pile` (portrait, ecrans etroits) : en-tete au-dessus, journal dessous.
+   *   La largeur est bornee par la hauteur restante fois le ratio du canvas.
+   * - `lateral` (ecrans larges, 16/9) : la colonne `.lateral` porte titre,
+   *   compteurs et journal a cote du plateau, qui prend toute la hauteur.
    *
    * La mesure est faite en JS et non en CSS parce que l'en-tete se replie
-   * sur deux lignes selon la largeur : une constante ne pouvait pas suivre.
+   * selon la largeur et que la largeur de la colonne est en `clamp()` : une
+   * constante ne pouvait pas suivre.
    */
   function cadrer(scene, journal) {
+    var jeu = scene.parentElement;
+    var cs = getComputedStyle(jeu);
+    var lateral = cs.getPropertyValue("--mode").trim() === "lateral";
+    var ratio = parseFloat(getComputedStyle(scene).getPropertyValue("--ratio")) || 800 / 560;
     var haut = 0, el = scene;
     while (el) { haut += el.offsetTop || 0; el = el.offsetParent; }
-    var bas = journal ? journal.offsetHeight + 8 : 0;
-    scene.style.setProperty("--chrome", (haut + bas + 12) + "px");
+    // En mode lateral, le journal est a cote du plateau et ne prend pas de
+    // hauteur ; la colonne laterale prend de la largeur.
+    var bas = (!lateral && journal) ? journal.offsetHeight + 8 : 0;
+    var dispoH = global.innerHeight - haut - bas - 12;
+    var dispoW = jeu.clientWidth;
+    if (lateral) {
+      var aside = jeu.querySelector(".lateral");
+      dispoW -= (aside ? aside.offsetWidth : 0) + (parseFloat(cs.columnGap) || 0);
+    }
+    var w = Math.max(200, Math.min(dispoW, dispoH * ratio));
+    scene.style.width = w + "px";
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Journal : derniere phrase en clair, les precedentes en retrait       */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * `el` contient un <span> d'etiquette et un `.mot`. Les phrases precedentes
+   * sont conservees dans un `.anciens` (quatre au plus), que la coquille
+   * n'affiche qu'en mode lateral, ou il y a de la place pour une histoire.
+   */
+  function journal(el) {
+    var mot = el.querySelector(".mot");
+    var anciens = document.createElement("div");
+    anciens.className = "anciens";
+    el.appendChild(anciens);
+    var dernier = mot ? mot.textContent : "";
+    return {
+      ecrire: function (txt) {
+        if (txt === dernier) return;
+        if (dernier) {
+          var l = document.createElement("div");
+          l.textContent = dernier;
+          anciens.insertBefore(l, anciens.firstChild);
+          while (anciens.children.length > 4) anciens.removeChild(anciens.lastChild);
+        }
+        dernier = txt;
+        if (mot) mot.textContent = txt;
+      },
+      dernier: function () { return dernier; }
+    };
   }
 
   /* ------------------------------------------------------------------ */
@@ -619,5 +665,5 @@
     damier: damier, cadre: cadre, lueur: lueur
   };
 
-  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, pix: pix };
+  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, journal: journal, pix: pix };
 })(window);

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake — Constituez votre équipe web</title>
-<link rel="stylesheet" href="../assets/arcade.css?v=4">
+<link rel="stylesheet" href="../assets/arcade.css?v=5">
 <style>
   .equipe{margin-top:14px}
   .equipe h2{
@@ -21,7 +21,7 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap jeu">
   <header class="tete">
     <a class="retour" href="../">&larr; Jeux</a>
     <h1>Snake <span class="sous">/ Constituez votre équipe web</span></h1>
@@ -46,8 +46,10 @@
         <button class="btn" id="ecran-btn">Constituer l'équipe</button>
       </div>
     </div>
-    <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Poste ouvert, fiche de poste rédigée.</em></div>
   </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Poste ouvert, fiche de poste rédigée.</em></div>
 
   <section class="notice">
     <p class="chapo">Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus difficile à diriger. <strong>Quarante métiers du web</strong> à réunir, sans percuter les murs, votre propre équipe, ni la dette technique qui s'accumule.</p>
@@ -69,9 +71,10 @@
 
     <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
   </section>
+  </aside>
 </div>
 
-<script src="../assets/arcade.js?v=4"></script>
+<script src="../assets/arcade.js?v=5"></script>
 <script>
 (() => {
 "use strict";
@@ -89,7 +92,7 @@ const texteEl = document.getElementById("ecran-texte");
 const btnEl = document.getElementById("ecran-btn");
 const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
-const journalMot = document.getElementById("journal-mot");
+const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
 const pucesEl = document.getElementById("puces");
 const hudEquipe = document.getElementById("hud-equipe");
@@ -205,6 +208,7 @@ function resize(){
   ctx.setTransform(s, 0, 0, s, 0, 0);
 }
 window.addEventListener("resize", resize);
+window.addEventListener("load", resize);   // les polices peuvent changer la hauteur de l'en-tete
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
 
 const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
@@ -342,7 +346,7 @@ btnEl.addEventListener("click", () => {
 let dernierMot = "Poste ouvert, fiche de poste rédigée.";
 function log(txt){
   dernierMot = txt;
-  journalMot.textContent = txt;
+  journal.ecrire(txt);
   majBarre();
 }
 function majHud(){

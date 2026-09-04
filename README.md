@@ -63,51 +63,23 @@ Le fond bleu `#000091` et les couleurs de familles sont conservés : c'est l'ide
 plateaux. La coquille autour, elle, ne suit plus le DSFR — palette sombre, monospace système
 pour les compteurs. Seul l'accueil reste dans le registre institutionnel.
 
-## Ligne de flottaison
+## Ligne de flottaison et deux mises en page
 
-Le plateau et la ligne de journal doivent tenir dans la hauteur de la fenêtre, sur desktop
-comme en paysage sur mobile. La largeur de la scène est bornée par la hauteur disponible :
+Le plateau doit tenir dans la hauteur de la fenêtre, sur desktop comme en paysage sur mobile.
+Les canvas sont en 4/3 et les écrans en 16/9 : deux modes, choisis par le CSS (`--mode` sur
+`.jeu`) et lus par `Arcade.cadrer()`, qui pose la largeur de la scène en JS à chaque `resize`.
 
-```css
-.scene{ width:min(100%, calc((100dvh - var(--chrome)) * var(--ratio))) }
-```
+- **`lateral`** (`min-width:760px` et `min-aspect-ratio:4/3`) : le plateau prend la hauteur à
+  gauche ; la colonne de droite (`clamp(240px, 26vw, 320px)`) porte titre, compteurs, outils,
+  journal avec ses quatre dernières phrases, puis la notice. C'est le mode desktop et paysage
+  mobile.
+- **`pile`** (portrait, écrans étroits) : en-tête au-dessus, plateau, journal d'une ligne,
+  notice sous la ligne de flottaison. La largeur est bornée par la hauteur restante fois le
+  ratio du canvas.
 
-`--ratio` est posé par chaque page (largeur / hauteur de son canvas). `--chrome` est mesuré
-par `Arcade.cadrer(scene, journal)` à chaque `resize` : hauteur de tout ce qui précède la
-scène, plus celle du journal. Une constante CSS ne suffisait pas, l'en-tête se replie sur deux
-lignes selon la largeur. En paysage sur mobile (`max-height:520px`), les compteurs de l'en-tête
-disparaissent — le bandeau du canvas les porte déjà — pour rendre chaque pixel au plateau.
-
-### Plein écran
-
-`Arcade.plein(el, bouton, onChange)` tente l'API native, et retombe sur une classe CSS
-`position:fixed; inset:0` quand elle est indisponible — Safari iOS ne l'expose que sur les
-éléments `<video>`. Les deux jeux recalculent alors leur canvas pour tenir dans **les deux**
-dimensions : en paysage sur mobile, c'est la hauteur qui contraint.
-
-La classe `.plein` est posée dans les **deux** modes, natif compris : elle porte la mise en
-page plein écran *et* l'affichage de la barre de service. Cette barre (score, dernière phrase
-du journal, bouton « Quitter ») est le seul moyen de sortir au doigt — il n'y a pas d'Échap
-sur mobile, et le repli CSS n'ouvre pas la sortie native du navigateur.
-
-L'appel renvoie `{basculer, actif, stat, message}` : chaque jeu alimente `stat()` et
-`message()` depuis ses propres fonctions de mise à jour.
-
-### Inclinaison
-
-`Arcade.inclinaison(bouton, onTilt)` normalise `gamma`/`beta` selon l'orientation de l'écran.
-iOS 13+ exige `DeviceOrientationEvent.requestPermission()` déclenché par un geste utilisateur,
-d'où le bouton. Sur les appareils sans capteur, le bouton reste masqué : il n'apparaît qu'après
-réception d'un événement porteur de valeurs.
-
-Le callback reçoit `{gamma, beta, dGamma, dBeta}`. Les deux derniers sont **relatifs à la
-position de départ**, capturée à l'activation : un téléphone tenu en main repose autour de
-`beta = 40` à `70°`, jamais 0. Comparer les valeurs brutes faisait gagner l'axe vertical en
-permanence et rendait le snake indirigeable.
-
-- **Casse-brique** : `gamma` brut, l'angle donnant une position absolue de la barre — pas une
-  vitesse. L'axe horizontal repose naturellement autour de 0, l'étalonnage n'y sert à rien.
-- **Snake** : `dGamma`/`dBeta`, axe dominant seul, zone neutre de 12°.
+La mesure est en JS et non en CSS parce que l'en-tête se replie selon la largeur et que la
+colonne est en `clamp()` : une constante ne suivait pas. Le journal est géré par
+`Arcade.journal(el)`, qui garde l'historique dans un `.anciens` masqué en mode `pile`.
 
 ## Tactile
 

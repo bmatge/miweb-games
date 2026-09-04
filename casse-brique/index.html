@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casse-brique du chef de projet</title>
-<link rel="stylesheet" href="../assets/arcade.css?v=4">
+<link rel="stylesheet" href="../assets/arcade.css?v=5">
 </head>
 <body>
-<div class="wrap">
+<div class="wrap jeu">
   <header class="tete">
     <a class="retour" href="../">&larr; Jeux</a>
     <h1>Casse-brique <span class="sous">/ du chef de projet</span></h1>
@@ -32,8 +32,10 @@
         <button class="btn" id="ecran-btn">Lancer le projet</button>
       </div>
     </div>
-    <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">En attente du feu vert.</em></div>
   </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">En attente du feu vert.</em></div>
 
   <section class="notice">
     <p class="chapo">Vous êtes la barre. Le projet est la balle. Devant vous, le mur habituel : référentiels, obligations, incidents et instances. <strong>Trois COPIL</strong> pour tout faire tomber.</p>
@@ -47,9 +49,10 @@
 
     <p class="aide">Bonus qui tombent : <code>€</code> rallonge budgétaire, <code>+</code> renfort d'équipe, <code>≡</code> lotissement (trois balles), <code>!</code> réunion imprévue (malus). <code>P</code> met en pause.</p>
   </section>
+  </aside>
 </div>
 
-<script src="../assets/arcade.js?v=4"></script>
+<script src="../assets/arcade.js?v=5"></script>
 <script>
 (() => {
 "use strict";
@@ -63,7 +66,7 @@ const texteEl = document.getElementById("ecran-texte");
 const btnEl = document.getElementById("ecran-btn");
 const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
-const journalMot = document.getElementById("journal-mot");
+const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
 const hudCopil = document.getElementById("hud-copil");
 const hudCharge = document.getElementById("hud-charge");
@@ -96,6 +99,7 @@ function resize(){
   ctx.setTransform(s, 0, 0, s, 0, 0);
 }
 window.addEventListener("resize", resize);
+window.addEventListener("load", resize);   // les polices peuvent changer la hauteur de l'en-tete
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
 
 const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
@@ -317,7 +321,7 @@ btnEl.addEventListener("click", () => {
 let dernierMot = "En attente du feu vert.";
 function log(txt){
   dernierMot = txt;
-  journalMot.textContent = txt;
+  journal.ecrire(txt);
   majBarre();
 }
 function majHud(){
