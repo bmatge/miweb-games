@@ -5,8 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>miweb games — petits jeux du web</title>
 <meta name="description" content="Petits jeux web autonomes sur les coulisses d'un projet numérique : casse-brique du chef de projet, snake des métiers du web.">
-<link rel="stylesheet" href="assets/arcade.css?v=3">
 <style>
+  /* L'accueil garde une mise en page claire, institutionnelle ; les jeux, eux,
+     chargent assets/arcade.css (salle sombre). Rien de partage entre les deux. */
+  :root{
+    --bleu:#000091;
+    --gris:#E5E5E5;
+    --encre:#161616;
+    --papier:#F7F7F5;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--papier);color:var(--encre);
+    font-family:"Marianne","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+    line-height:1.45;padding:18px 14px 40px;
+  }
+  .wrap{max-width:840px;margin:0 auto}
+  h1{font-size:clamp(22px,5.4vw,34px);line-height:1.05;letter-spacing:-0.02em;font-weight:800;margin:0 0 6px}
+  .chapo{margin:0 0 16px;font-size:14px;max-width:62ch;color:#3a3a3a}
   .grille{
     display:grid;gap:14px;margin-top:20px;
     grid-template-columns:repeat(auto-fill,minmax(272px,1fr));
@@ -41,30 +58,7 @@
   <div class="grille">
 
     <a class="card" href="casse-brique/">
-      <svg class="vignette" viewBox="0 0 320 180" role="img" aria-label="Aperçu : un mur de briques colorées et une barre en bas">
-        <rect width="320" height="180" fill="#000091"/>
-        <rect width="320" height="16" fill="#00006e"/>
-        <rect y="16" width="320" height="2" fill="#E1000F"/>
-        <g>
-          <rect x="14" y="30" width="54" height="15" fill="#ffffff"/>
-          <rect x="76" y="30" width="54" height="15" fill="#FFCA00"/>
-          <rect x="138" y="30" width="54" height="15" fill="#E1000F"/>
-          <rect x="200" y="30" width="54" height="15" fill="#ffffff"/>
-          <rect x="262" y="30" width="44" height="15" fill="#FFCA00"/>
-          <rect x="14" y="51" width="54" height="15" fill="#E1000F"/>
-          <rect x="76" y="51" width="54" height="15" fill="#ffffff"/>
-          <rect x="138" y="51" width="54" height="15" fill="#7d7d7d"/>
-          <rect x="200" y="51" width="54" height="15" fill="#FFCA00"/>
-          <rect x="262" y="51" width="44" height="15" fill="#E1000F"/>
-          <rect x="76" y="72" width="54" height="15" fill="#FFCA00"/>
-          <rect x="138" y="72" width="54" height="15" fill="#ffffff"/>
-          <rect x="200" y="72" width="54" height="15" fill="#E1000F"/>
-        </g>
-        <circle cx="196" cy="112" r="6" fill="#FFCA00"/>
-        <rect x="132" y="150" width="70" height="8" fill="#ffffff"/>
-        <rect x="132" y="156" width="70" height="2" fill="#E1000F"/>
-        <circle cx="167" cy="141" r="4" fill="#ffffff"/>
-      </svg>
+      <canvas class="vignette" id="vig-casse" width="320" height="180" role="img" aria-label="Aperçu : un mur de briques colorées et une barre en bas"></canvas>
       <div class="card-corps">
         <h2>Casse-brique du chef de projet</h2>
         <p>Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber en trois COPIL. Deux briques ne cèdent jamais : décret et circulaire.</p>
@@ -78,28 +72,7 @@
     </a>
 
     <a class="card" href="snake/">
-      <svg class="vignette" viewBox="0 0 320 180" role="img" aria-label="Aperçu : un serpent composé de carrés colorés se dirigeant vers un profil à recruter">
-        <rect width="320" height="180" fill="#000091"/>
-        <rect width="320" height="16" fill="#00006e"/>
-        <rect y="16" width="320" height="2" fill="#E1000F"/>
-        <g stroke="#ffffff" stroke-opacity=".08">
-          <path d="M40 18V180M80 18V180M120 18V180M160 18V180M200 18V180M240 18V180M280 18V180"/>
-          <path d="M0 58H320M0 98H320M0 138H320"/>
-        </g>
-        <rect x="44" y="102" width="30" height="30" fill="#18753C" stroke="#ffffff" stroke-opacity=".35"/>
-        <rect x="84" y="102" width="30" height="30" fill="#0078a8" stroke="#ffffff" stroke-opacity=".35"/>
-        <rect x="124" y="102" width="30" height="30" fill="#6a2ea0" stroke="#ffffff" stroke-opacity=".35"/>
-        <rect x="124" y="62" width="30" height="30" fill="#E1000F" stroke="#ffffff" stroke-opacity=".35"/>
-        <rect x="164" y="62" width="30" height="30" fill="#FFCA00"/>
-        <circle cx="176" cy="74" r="2.6" fill="#161616"/>
-        <circle cx="186" cy="74" r="2.6" fill="#161616"/>
-        <rect x="244" y="62" width="30" height="30" fill="#000091" stroke="#ffffff" stroke-width="2"/>
-        <text x="259" y="83" font-family="system-ui,sans-serif" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">D</text>
-        <g fill="#6b6b6b" stroke="#3d3d3d" stroke-width="2">
-          <rect x="204" y="142" width="30" height="30"/>
-          <path d="M210 148l18 18M228 148l-18 18"/>
-        </g>
-      </svg>
+      <canvas class="vignette" id="vig-snake" width="320" height="180" role="img" aria-label="Aperçu : un serpent composé de carrés colorés se dirigeant vers un profil à recruter"></canvas>
       <div class="card-corps">
         <h2>Snake — Constituez votre équipe web</h2>
         <p>Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus dure à diriger. Quarante métiers à réunir, en évitant la dette technique qui s'accumule.</p>
@@ -120,5 +93,48 @@
     Le pilotage à l'inclinaison demande une autorisation sur iOS : le bouton apparaît dans le jeu.
   </p>
 </div>
+<script src="assets/arcade.js?v=4"></script>
+<script>
+// Vignettes dessinees avec les sprites des jeux eux-memes (Arcade.pix) : ce
+// que montre la card est exactement ce que rend le plateau.
+(() => {
+  const P = Arcade.pix;
+  const dpr = window.devicePixelRatio || 1;
+  function toile(id){
+    const cv = document.getElementById(id), W = 320, H = 180;
+    cv.width = W * dpr; cv.height = H * dpr;
+    const ctx = cv.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = "#000091"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#00006e"; ctx.fillRect(0, 0, W, 16);
+    ctx.fillStyle = "#E1000F"; ctx.fillRect(0, 16, W, 2);
+    return ctx;
+  }
+  // casse-brique
+  let c = toile("vig-casse");
+  const T = {n:"#ffffff", t:"#E1000F", p:"#FFCA00", s:"#7d7d7d"};
+  [["n","p","t","n","p"],["t","n","s","p","t"],["","p","n","t",""]].forEach((l, r) =>
+    l.forEach((k, i) => { if(k) P.biseau(c, 14 + i * 62, 30 + r * 21, 54, 15, 2, T[k], k === "s"); }));
+  P.balle(c, 196, 112, 6);
+  P.biseau(c, 132, 150, 70, 9, 2, "#ffffff");
+  c.fillStyle = "#E1000F"; c.fillRect(134, 157, 66, 2);
+  P.agent(c, 160, 134, 14, "#FFCA00");
+  // snake
+  c = toile("vig-snake");
+  c.strokeStyle = "rgba(255,255,255,.08)"; c.lineWidth = 1;
+  for(let x = 40; x < 320; x += 40){ c.beginPath(); c.moveTo(x + .5, 18); c.lineTo(x + .5, 180); c.stroke(); }
+  for(let y = 58; y < 180; y += 40){ c.beginPath(); c.moveTo(0, y + .5); c.lineTo(320, y + .5); c.stroke(); }
+  [[44,102,"#18753C"],[84,102,"#0078a8"],[124,102,"#6a2ea0"],[124,62,"#E1000F"]].forEach(([x, y, f]) => {
+    P.biseau(c, x, y, 30, 30, 4, f);
+    c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(x + .5, y + .5, 29, 29);
+  });
+  P.tete(c, 164, 62, 30, {x:1, y:0}, true);
+  P.biseau(c, 244, 62, 30, 30, 4, "#000091");
+  c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(244.5, 62.5, 29, 29);
+  P.picto(c, "tech", 248, 66, 22, "#ffffff");
+  P.biseau(c, 204, 142, 30, 30, 4, "#6b6b6b", true);
+  P.picto(c, "dette", 210, 148, 18, "#2e2e2e");
+})();
+</script>
 </body>
 </html>

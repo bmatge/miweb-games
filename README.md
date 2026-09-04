@@ -15,15 +15,57 @@ En ligne : <https://miweb-games.lab.miweb.run>
 ## Structure
 
 ```
-index.html          page d'accueil : une card par jeu
-assets/arcade.css   coquille commune (HUD, plateau, overlay, plein écran)
-assets/arcade.js    plein écran et pilotage à l'inclinaison
+index.html          page d'accueil : une card par jeu, mise en page claire autonome
+assets/arcade.css   coquille des jeux (salle d'arcade sombre : en-tête, HUD, scène, overlay)
+assets/arcade.js    plein écran, inclinaison, cadrage et sprites pixel (Arcade.pix)
 casse-brique/       jeu 1
 snake/              jeu 2
 ```
 
-Chaque jeu reste autonome : son moteur vit dans son `index.html`. Seuls la coquille visuelle
-et les deux comportements transverses (plein écran, inclinaison) sont mutualisés.
+Chaque jeu reste autonome : son moteur vit dans son `index.html`. Sont mutualisés la coquille
+visuelle, les sprites, et trois comportements transverses (plein écran, inclinaison, cadrage).
+L'accueil ne charge pas `arcade.css` : il garde une mise en page claire et institutionnelle,
+et n'emprunte à `arcade.js` que les sprites pour ses vignettes.
+
+## Direction artistique
+
+Les jeux sont en **pixel art dessiné au canvas** : aucune image, aucune police externe, tout
+passe par `fillRect`. `Arcade.pix` expose les primitives partagées :
+
+- `grille(ctx, lignes, x, y, taille, palette)` — un sprite décrit en tableau de chaînes, une
+  lettre par couleur, `.` transparent. Les pixels contigus d'une même couleur sont fusionnés en
+  un seul rectangle, et chaque rectangle déborde d'une fraction sur son voisin : aux échelles
+  non entières, le fond transparaissait sinon en fines coutures.
+- `biseau(ctx, x, y, w, h, u, fond, creux)` — boîte à relief arcade, clair en haut/gauche,
+  sombre en bas/droite (`creux` inverse, pour les socles).
+- `picto(ctx, cle, …)` — six pictogrammes de famille en grille de **8×8** (tech, design,
+  produit, contenu, qualité, data) plus la dette technique.
+- `tete(ctx, x, y, taille, dir, langue)` — tête du serpent 8×8, tournée selon le cap.
+- `agent(ctx, …)` (14×14, chemise paramétrable) et `balle(ctx, cx, cy, r)` (8×8).
+
+La grille de 8 pour les cases n'est pas un choix esthétique mais de lisibilité : une case du
+snake fait 26 px sur le canvas logique, 12 à 18 px sur un téléphone. À cette taille, un sprite
+de 16 devient une tache. `imageSmoothingEnabled` ne joue pas ici, il ne concerne que
+`drawImage`.
+
+Le fond bleu `#000091` et les couleurs de familles sont conservés : c'est l'identité des
+plateaux. La coquille autour, elle, ne suit plus le DSFR — palette sombre, monospace système
+pour les compteurs et titres. Seul l'accueil reste dans le registre institutionnel.
+
+## Ligne de flottaison
+
+Le plateau et la ligne de journal doivent tenir dans la hauteur de la fenêtre, sur desktop
+comme en paysage sur mobile. La largeur de la scène est bornée par la hauteur disponible :
+
+```css
+.scene{ width:min(100%, calc((100dvh - var(--chrome)) * var(--ratio))) }
+```
+
+`--ratio` est posé par chaque page (largeur / hauteur de son canvas). `--chrome` est mesuré
+par `Arcade.cadrer(scene, journal)` à chaque `resize` : hauteur de tout ce qui précède la
+scène, plus celle du journal. Une constante CSS ne suffisait pas, l'en-tête se replie sur deux
+lignes selon la largeur. En paysage sur mobile (`max-height:520px`), les compteurs de l'en-tête
+disparaissent — le bandeau du canvas les porte déjà — pour rendre chaque pixel au plateau.
 
 ### Plein écran
 

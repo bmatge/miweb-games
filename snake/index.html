@@ -4,66 +4,74 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake — Constituez votre équipe web</title>
-<link rel="stylesheet" href="../assets/arcade.css?v=3">
+<link rel="stylesheet" href="../assets/arcade.css?v=4">
 <style>
-  .equipe{margin-top:12px;background:#fff;border:1px solid var(--gris);padding:10px 12px}
-  .equipe h2{font-size:13px;margin:0 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#555}
+  .equipe{margin-top:14px}
+  .equipe h2{
+    font-family:var(--mono);font-size:10px;margin:0 0 8px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.12em;color:var(--sourd);
+  }
   .puces{display:flex;flex-wrap:wrap;gap:5px;min-height:26px}
   .puce{
-    font-size:11.5px;font-weight:600;color:#fff;padding:3px 8px;
-    border:1px solid #00000020;line-height:1.3;
+    font-size:11.5px;font-weight:600;color:#fff;padding:3px 8px;line-height:1.3;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),inset -1px -1px 0 rgba(0,0,0,.35);
   }
   .puce.clair{color:#161616}
-  .vide{font-size:12.5px;color:#777;font-style:italic}
+  .vide{font-size:12.5px;color:var(--sourd);font-style:italic}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <a class="retour" href="../">← Tous les jeux</a>
-  <h1>Snake — Constituez votre équipe web</h1>
-  <p class="chapo">Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus difficile à diriger. Quarante métiers du web à réunir, sans percuter les murs, votre propre équipe, ni la dette technique qui s'accumule.</p>
-
-  <div class="hud">
-    <div class="stat"><b id="hud-equipe">0 / 40</b><span>équipe constituée</span></div>
-    <div class="stat"><b id="hud-cible">—</b><span>profil à recruter</span></div>
-    <div class="stat"><b id="hud-record">0</b><span>record</span></div>
-    <div class="outils">
-      <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
-      <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
-      <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Snake <span class="sous">/ Constituez votre équipe web</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-equipe">0 / 40</b><span>équipe</span></div>
+      <div class="stat"><b id="hud-cible">—</b><span>à recruter</span></div>
+      <div class="stat"><b id="hud-record">0</b><span>record</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <div class="board" id="board">
-    <canvas id="jeu" width="780" height="560" aria-label="Aire de jeu du snake"></canvas>
-    <div class="overlay" id="ecran">
-      <h2 id="ecran-titre">Prêt à recruter ?</h2>
-      <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison de l'appareil. Chaque profil recruté allonge l'équipe.</p>
-      <button class="btn" id="ecran-btn">Constituer l'équipe</button>
+  <div class="scene" id="scene" style="--ratio:1.3929">
+    <div class="board" id="board">
+      <canvas id="jeu" width="780" height="560" aria-label="Aire de jeu du snake"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Prêt à recruter ?</h2>
+        <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison de l'appareil. Chaque profil recruté allonge l'équipe.</p>
+        <button class="btn" id="ecran-btn">Constituer l'équipe</button>
+      </div>
     </div>
+    <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Poste ouvert, fiche de poste rédigée.</em></div>
   </div>
 
-  <div class="journal" id="journal"><span>Journal de recrutement</span>Poste ouvert, fiche de poste rédigée.</div>
+  <section class="notice">
+    <p class="chapo">Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus difficile à diriger. <strong>Quarante métiers du web</strong> à réunir, sans percuter les murs, votre propre équipe, ni la dette technique qui s'accumule.</p>
 
-  <div class="equipe">
-    <h2>Équipe constituée</h2>
-    <div class="puces" id="puces"><span class="vide">Personne pour l'instant. Vous êtes seul sur le projet.</span></div>
-  </div>
+    <div class="equipe">
+      <h2>Équipe constituée</h2>
+      <div class="puces" id="puces"><span class="vide">Personne pour l'instant. Vous êtes seul sur le projet.</span></div>
+    </div>
 
-  <div class="legende">
-    <div><i style="background:#000091"></i>Technique</div>
-    <div><i style="background:#6a2ea0"></i>Design</div>
-    <div><i style="background:#FFCA00"></i>Produit et pilotage</div>
-    <div><i style="background:#18753C"></i>Contenu</div>
-    <div><i style="background:#E1000F"></i>Qualité et conformité</div>
-    <div><i style="background:#0078a8"></i>Data</div>
-    <div><i style="background:#6b6b6b"></i>Dette technique — mortelle</div>
-  </div>
+    <div class="legende">
+      <div><i style="background:#000091"></i>Technique</div>
+      <div><i style="background:#6a2ea0"></i>Design</div>
+      <div><i style="background:#FFCA00"></i>Produit et pilotage</div>
+      <div><i style="background:#18753C"></i>Contenu</div>
+      <div><i style="background:#E1000F"></i>Qualité et conformité</div>
+      <div><i style="background:#0078a8"></i>Data</div>
+      <div><i style="background:#6b6b6b"></i>Dette technique — mortelle</div>
+    </div>
 
-  <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+    <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+  </section>
 </div>
 
-<script src="../assets/arcade.js?v=3"></script>
+<script src="../assets/arcade.js?v=4"></script>
 <script>
 (() => {
 "use strict";
@@ -79,7 +87,10 @@ const ecran = document.getElementById("ecran");
 const titreEl = document.getElementById("ecran-titre");
 const texteEl = document.getElementById("ecran-texte");
 const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
+const journalMot = document.getElementById("journal-mot");
+const pix = Arcade.pix;
 const pucesEl = document.getElementById("puces");
 const hudEquipe = document.getElementById("hud-equipe");
 const hudCible = document.getElementById("hud-cible");
@@ -182,6 +193,7 @@ function resize(){
     cv.style.width = cssW + "px";
   } else {
     cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
     cssW = board.clientWidth || W;
     cssH = cssW * H / W;
   }
@@ -329,7 +341,7 @@ btnEl.addEventListener("click", () => {
 let dernierMot = "Poste ouvert, fiche de poste rédigée.";
 function log(txt){
   dernierMot = txt;
-  journalEl.innerHTML = "<span>Journal de recrutement</span>" + txt;
+  journalMot.textContent = txt;
   majBarre();
 }
 function majHud(){
@@ -435,6 +447,9 @@ function perdre(raison){
 }
 
 /* ---------- dessin ---------- */
+// Tout le rendu passe par Arcade.pix : les regles du jeu ne savent rien de
+// la facture. Grille de 8 pour les cases (26 px sur le canvas logique,
+// 12 a 18 px sur un telephone), les sprites plus fins deviendraient une tache.
 function dessiner(){
   ctx.fillStyle = "#000091";
   ctx.fillRect(0, 0, W, H);
@@ -443,14 +458,14 @@ function dessiner(){
   ctx.fillStyle = "#00006e";
   ctx.fillRect(0, 0, W, BANDEAU);
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 15px 'Marianne',system-ui,sans-serif";
+  ctx.fillStyle = "#FFCA00";
+  ctx.font = "700 14px " + pix.MONO;
   ctx.textAlign = "left";
-  ctx.fillText("Équipe : " + recrutes.length + " / " + METIERS.length, 14, BANDEAU / 2);
+  ctx.fillText("ÉQUIPE " + recrutes.length + "/" + METIERS.length, 14, BANDEAU / 2);
   ctx.textAlign = "right";
-  ctx.font = "400 13px 'Marianne',system-ui,sans-serif";
+  ctx.font = "400 12px " + pix.MONO;
   ctx.fillStyle = "#c9c9ff";
-  ctx.fillText(cible ? "À recruter : " + cible.nom : "Tous les postes sont pourvus",
+  ctx.fillText(cible ? "À RECRUTER : " + cible.nom.toUpperCase() : "TOUS LES POSTES SONT POURVUS",
     W - 14, BANDEAU / 2);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, BANDEAU - 3, W, 3);
@@ -467,57 +482,43 @@ function dessiner(){
     ctx.moveTo(0, BANDEAU + y * CELL + .5); ctx.lineTo(W, BANDEAU + y * CELL + .5); ctx.stroke();
   }
 
-  // dette technique
+  const u = CELL / 8;
+
+  // dette technique : bloc enfonce, croix sombre
   for(const d of dettes){
     const px = d.x * CELL, py = BANDEAU + d.y * CELL;
-    ctx.fillStyle = "#6b6b6b";
-    ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
-    ctx.strokeStyle = "#3d3d3d"; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(px + 7, py + 7); ctx.lineTo(px + CELL - 7, py + CELL - 7);
-    ctx.moveTo(px + CELL - 7, py + 7); ctx.lineTo(px + 7, py + CELL - 7);
-    ctx.stroke();
+    pix.biseau(ctx, px + 2, py + 2, CELL - 4, CELL - 4, u, "#6b6b6b", true);
+    pix.picto(ctx, "dette", px + 6, py + 6, CELL - 12, "#2e2e2e");
   }
 
-  // cible
+  // cible : la couleur dit la famille, le pictogramme aussi ; le nom est
+  // dans le bandeau. La case respire pour attirer l'oeil.
   if(cible){
     const f = FAMILLES[cible.famille];
     const px = cible.x * CELL, py = BANDEAU + cible.y * CELL;
     const pulse = 1 + Math.sin(performance.now() / 220) * .07;
-    const t = (CELL - 6) * pulse;
-    ctx.fillStyle = f.fond;
-    ctx.fillRect(px + (CELL - t) / 2, py + (CELL - t) / 2, t, t);
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
-    ctx.strokeRect(px + (CELL - t) / 2, py + (CELL - t) / 2, t, t);
-    ctx.fillStyle = f.texte;
-    ctx.font = "700 12px 'Marianne',system-ui,sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(cible.nom.charAt(0).toUpperCase(), px + CELL / 2, py + CELL / 2 + 1);
+    const t = (CELL - 4) * pulse;
+    const x0 = px + (CELL - t) / 2, y0 = py + (CELL - t) / 2;
+    pix.biseau(ctx, x0, y0, t, t, t / 8, f.fond);
+    pix.picto(ctx, cible.famille, x0 + t / 8, y0 + t / 8, t * .75, f.texte);
   }
 
   // equipe (serpent)
+  const langue = Math.floor(performance.now() / 380) % 4 === 0;
   for(let i = serpent.length - 1; i >= 0; i--){
     const s = serpent[i];
     const px = s.x * CELL, py = BANDEAU + s.y * CELL;
     if(i === 0){
-      // Contour sombre : la famille « produit » est jaune elle aussi, la tete
-      // et un profil a recruter etaient sinon impossibles a distinguer.
-      ctx.fillStyle = "#FFCA00";
-      ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
-      ctx.strokeStyle = "#161616"; ctx.lineWidth = 2;
-      ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
-      ctx.fillStyle = "#161616";
-      const ox = dir.x * 3, oy = dir.y * 3;
-      ctx.beginPath(); ctx.arc(px + CELL/2 - 4 + ox, py + CELL/2 - 2 + oy, 2.2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px + CELL/2 + 4 + ox, py + CELL/2 - 2 + oy, 2.2, 0, Math.PI*2); ctx.fill();
+      pix.tete(ctx, px + 1, py + 1, CELL - 2, dir, langue && etat === "jeu");
     } else {
       // Le corps porte les couleurs des profils recrutes, du plus recent au
       // plus ancien : l'equipe se lit dans le serpent lui-meme.
       const m = recrutes[recrutes.length - i];
       const f = m ? FAMILLES[m.famille] : null;
-      ctx.fillStyle = f ? f.fond : "#ffffff";
-      ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
-      ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1;
+      pix.biseau(ctx, px + 2, py + 2, CELL - 4, CELL - 4, u, f ? f.fond : "#ffffff");
+      // Liseré : la famille « technique » a la couleur du fond, sans lui ses
+      // segments n'existaient que par le biseau clair.
+      ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1;
       ctx.strokeRect(px + 2.5, py + 2.5, CELL - 5, CELL - 5);
     }
   }

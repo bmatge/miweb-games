@@ -226,5 +226,235 @@
     return { actif: function () { return actif; } };
   }
 
-  global.Arcade = { plein: plein, inclinaison: inclinaison };
+  /* ------------------------------------------------------------------ */
+  /* Cadrage : le plateau tient au-dessus de la ligne de flottaison       */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Mesure ce qui entoure la scene (en-tete au-dessus, journal en dessous)
+   * et pose `--chrome` sur la scene. Le CSS en deduit la largeur maximale
+   * du plateau : `min(100%, (100dvh - chrome) * ratio)`. Sur un ecran large
+   * ou en paysage mobile, c'est la hauteur qui contraint — sans cette mesure
+   * le plateau prenait toute la largeur et le bas passait sous la ligne de
+   * flottaison, journal compris.
+   *
+   * La mesure est faite en JS et non en CSS parce que l'en-tete se replie
+   * sur deux lignes selon la largeur : une constante ne pouvait pas suivre.
+   */
+  function cadrer(scene, journal) {
+    var haut = 0, el = scene;
+    while (el) { haut += el.offsetTop || 0; el = el.offsetParent; }
+    var bas = journal ? journal.offsetHeight + 8 : 0;
+    scene.style.setProperty("--chrome", (haut + bas + 12) + "px");
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Sprites pixel : primitives de dessin partagees par les jeux          */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Tout est dessine au canvas par `fillRect`, en grille de 8 (les cases du
+   * snake) ou de 14 (les personnages). Aucune image, aucun `drawImage` :
+   * `imageSmoothingEnabled` ne joue donc pas, et un sprite reste net a toute
+   * echelle. Les pixels d'une meme ligne et d'une meme couleur sont fusionnes
+   * en un seul rectangle, et chaque rectangle deborde d'une fraction sur son
+   * voisin : sans cela, aux echelles non entieres, le fond transparait en
+   * fines coutures entre les pixels.
+   */
+  var MONO = "ui-monospace, Menlo, Consolas, 'Liberation Mono', monospace";
+  var SANS = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+
+  function grille(ctx, lignes, x, y, taille, palette) {
+    var n = lignes[0].length, u = taille / n, deb = .6;
+    for (var r = 0; r < lignes.length; r++) {
+      var l = lignes[r], c = 0;
+      while (c < n) {
+        var k = l[c];
+        var col = palette[k];
+        if (!col) { c++; continue; }
+        var fin = c;
+        while (fin + 1 < n && l[fin + 1] === k) fin++;
+        ctx.fillStyle = col;
+        ctx.fillRect(x + c * u, y + r * u, (fin - c + 1) * u + deb, u + deb);
+        c = fin + 1;
+      }
+    }
+  }
+
+  /** Boite biseautee : clair en haut/gauche, sombre en bas/droite. `creux`
+   *  inverse le relief (brique enfoncee, socle). */
+  function biseau(ctx, x, y, w, h, u, fond, creux) {
+    var clair = "rgba(255,255,255,.45)", sombre = "rgba(0,0,0,.35)";
+    if (creux) { var t = clair; clair = sombre; sombre = t; }
+    ctx.fillStyle = fond;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = clair;
+    ctx.fillRect(x, y, w, u);
+    ctx.fillRect(x, y, u, h);
+    ctx.fillStyle = sombre;
+    ctx.fillRect(x, y + h - u, w, u);
+    ctx.fillRect(x + w - u, y, u, h);
+  }
+
+  /* Pictogrammes de famille, 8x8. Un par famille de metiers du snake, plus
+     la dette technique. Le pixel 'X' prend la couleur passee a l'appel. */
+  var PICTOS = {
+    tech: [           // < >
+      "........",
+      "..X..X..",
+      ".X....X.",
+      "X......X",
+      "X......X",
+      ".X....X.",
+      "..X..X..",
+      "........"],
+    design: [         // trait de pinceau
+      "......XX",
+      ".....XXX",
+      "....XXX.",
+      "...XXX..",
+      "..XXX...",
+      ".XXX....",
+      "XX......",
+      "X......."],
+    produit: [        // le backlog
+      "X.XXXXX.",
+      "........",
+      "X.XXXXX.",
+      "........",
+      "X.XXXXX.",
+      "........",
+      "X.XXXXX.",
+      "........"],
+    contenu: [        // bulle
+      ".XXXXXX.",
+      "X......X",
+      "X......X",
+      "X......X",
+      ".XXXXXX.",
+      "..X.....",
+      ".X......",
+      "........"],
+    qualite: [        // coche
+      ".......X",
+      "......XX",
+      ".....XX.",
+      "X...XX..",
+      "XX.XX...",
+      ".XXX....",
+      "..X.....",
+      "........"],
+    data: [           // barres
+      "........",
+      "......XX",
+      "......XX",
+      "...XX.XX",
+      "...XX.XX",
+      "XX.XX.XX",
+      "XX.XX.XX",
+      "XX.XX.XX"],
+    dette: [          // croix
+      "X......X",
+      "XX....XX",
+      ".XX..XX.",
+      "..XXXX..",
+      "..XXXX..",
+      ".XX..XX.",
+      "XX....XX",
+      "X......X"]
+  };
+
+  function picto(ctx, cle, x, y, taille, couleur) {
+    var g = PICTOS[cle];
+    if (g) grille(ctx, g, x, y, taille, { X: couleur });
+  }
+
+  /* Tete du serpent, 8x8, dessinee vers la droite puis tournee selon le cap.
+     Contour sombre : la famille « produit » est jaune elle aussi, sans lui la
+     tete et un profil a recruter etaient indiscernables. */
+  var TETE_DROITE = [
+    ".NNNNNN.",
+    "NJJJJJJN",
+    "NJJJJNJN",
+    "NJJJJJJN",
+    "NJJJJJJN",
+    "NJJJJNJN",
+    "NJJJJJJN",
+    ".NNNNNN."];
+  function tourner(g) {         // quart de tour horaire
+    var n = g.length, out = [];
+    for (var r = 0; r < n; r++) {
+      var l = "";
+      for (var c = 0; c < n; c++) l += g[n - 1 - c][r];
+      out.push(l);
+    }
+    return out;
+  }
+  var TETES = { "1,0": TETE_DROITE };
+  TETES["0,1"] = tourner(TETE_DROITE);
+  TETES["-1,0"] = tourner(TETES["0,1"]);
+  TETES["0,-1"] = tourner(TETES["-1,0"]);
+  var PAL_TETE = { N: "#161616", J: "#FFCA00" };
+
+  /**
+   * Tete en (x, y) de cote `taille`, orientee par `dir` ({x, y} unitaire).
+   * `langue` (booleen) ajoute deux pixels rouges devant : a faire clignoter
+   * par l'appelant.
+   */
+  function tete(ctx, x, y, taille, dir, langue) {
+    var g = TETES[dir.x + "," + dir.y] || TETE_DROITE;
+    grille(ctx, g, x, y, taille, PAL_TETE);
+    if (langue) {
+      var u = taille / 8;
+      ctx.fillStyle = "#E1000F";
+      // Un carre de 2x2 pixels centre sur l'axe du cap, juste au-dela du
+      // contour : colonnes 8-9 vers la droite, -2/-1 vers la gauche.
+      ctx.fillRect(x + (3 + dir.x * 5) * u, y + (3 + dir.y * 5) * u, 2 * u, 2 * u);
+    }
+  }
+
+  /* Petit agent, 14x14 : cheveux N, peau P, chemise C, pieds N. */
+  var AGENT = [
+    ".....NNNN.....",
+    "....NNNNNN....",
+    "...NPPPPPPN...",
+    "...NPNPPNPN...",
+    "...NPPPPPPN...",
+    "...NPPNNPPN...",
+    "....NPPPPN....",
+    ".....NPPN.....",
+    "...CCCCCCCC...",
+    "..CCCCCCCCCC..",
+    "..CCCCCCCCCC..",
+    "..CCCCCCCCCC..",
+    "..CC.CC.CC.CC.",
+    "..NN......NN.."];
+  function agent(ctx, x, y, taille, chemise) {
+    grille(ctx, AGENT, x, y, taille, {
+      N: "#161616", P: "#f2b8a0", C: chemise || "#ffffff"
+    });
+  }
+
+  /* Balle, 8x8 : jaune, reflet en haut a gauche, ombre en bas a droite. */
+  var BALLE = [
+    "..JJJJ..",
+    ".JBBJJJ.",
+    "JBJJJJJJ",
+    "JJJJJJJJ",
+    "JJJJJJJJ",
+    "JJJJJJSJ",
+    ".JJJJSS.",
+    "..JJJJ.."];
+  var PAL_BALLE = { J: "#FFCA00", B: "#fff5c2", S: "#a37f00" };
+  function balle(ctx, cx, cy, r) {
+    grille(ctx, BALLE, cx - r, cy - r, 2 * r, PAL_BALLE);
+  }
+
+  var pix = {
+    MONO: MONO, SANS: SANS,
+    grille: grille, biseau: biseau, picto: picto,
+    tete: tete, agent: agent, balle: balle
+  };
+
+  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, pix: pix };
 })(window);
