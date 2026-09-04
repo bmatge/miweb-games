@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La boîte de réception</title>
+<link rel="stylesheet" href="../assets/arcade.css?v=5">
+</head>
+<body>
+<div class="wrap jeu">
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Boîte de réception <span class="sous">/ ils descendent, vous répondez</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-traites">0</b><span>mails traités</span></div>
+      <div class="stat"><b id="hud-cafes">3</b><span>cafés</span></div>
+      <div class="stat"><b id="hud-vague">1</b><span>vague</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="scene" id="scene" style="--ratio:1.6327">
+    <div class="board" id="board">
+      <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu de la boîte de réception"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Lundi, 9 h. 84 non lus.</h2>
+        <p id="ecran-texte">Flèches ou glissement pour vous déplacer, espace, clic ou tap pour répondre. Les mails descendent en formation ; les relances tombent. Vos réponses automatiques d'absence encaissent, un temps.</p>
+        <div class="scores-zone" id="scores"></div>
+        <button class="btn" id="ecran-btn">Ouvrir la boîte</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">84 non lus. Le premier commence par « Bonjour à tous ».</em></div>
+
+  <section class="notice">
+    <p class="chapo">Les mails arrivent en formation et descendent vers vous. Des <strong>TTU</strong>, des « répondre à tous », des relances, et ces transferts d'une conversation de vingt échanges où l'on vous ajoute à la fin. Vous répondez d'en bas ; les relances pleuvent ; vos réponses automatiques d'absence encaissent jusqu'à s'effriter. Quand la formation touche votre bureau, la boîte est pleine.</p>
+
+    <div class="legende">
+      <div><i style="background:#6a2ea0"></i>FW — transfert d'une conversation de 20 échanges, trois réponses pour en venir à bout</div>
+      <div><i style="background:#0078a8"></i>RE — relance, elle relance</div>
+      <div><i style="background:#18753C"></i>CC — répondre à tous, une salve quand vous le traitez</div>
+      <div><i style="background:#E1000F"></i>TTU — très très urgent, accélère quand il en reste peu</div>
+    </div>
+
+    <p class="aide">Trois <strong>cafés</strong> : une relance qui vous atteint en coûte un. Chaque vague repart plus bas et plus vite. <code>P</code> met en pause.</p>
+  </section>
+  </aside>
+</div>
+
+<script src="../assets/arcade.js?v=5"></script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- plateau ---------- */
+const W = 800, H = 490, BANDEAU = 40;
+const COLS = 8, LIGNES = 4, PAS_X = 72, PAS_Y = 40, MW = 40, MH = 28;   // formation
+const Y_BUREAU = 440, Y_LIMITE = 392;                                  // ligne de la boite pleine
+
+const cv = document.getElementById("jeu");
+const ctx = cv.getContext("2d");
+const board = document.getElementById("board");
+const ecran = document.getElementById("ecran");
+const titreEl = document.getElementById("ecran-titre");
+const texteEl = document.getElementById("ecran-texte");
+const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
+const journalEl = document.getElementById("journal");
+const journal = Arcade.journal(journalEl);
+const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("inbox");
+const hudTraites = document.getElementById("hud-traites");
+const hudCafes = document.getElementById("hud-cafes");
+const hudVague = document.getElementById("hud-vague");
+const btnSon = document.getElementById("btn-son");
+
+/* ---------- les mails ---------- */
+// Une ligne de la formation par type, du haut vers le bas.
+const TYPES = [
+  {tag:"FW",  fond:"#6a2ea0", texte:"#ffffff", pv:3, pts:30,
+   quip:["Vous étiez en copie à la fin d'une conversation de vingt échanges. Le premier commençait par « Bonjour à tous ».",
+         "FW: FW: FW: RE: TR: — archivé sans lire. Personne ne saura.",
+         "Vingt échanges pour convenir d'une date. Elle ne tenait pas."]},
+  {tag:"RE",  fond:"#0078a8", texte:"#ffffff", pv:1, pts:20,
+   quip:["Relance traitée : la réponse était dans le mail d'avant.", "« Sauf erreur de ma part » : il y avait erreur de sa part.", "Relance n°3 close. Le n°4 est déjà parti."]},
+  {tag:"CC",  fond:"#18753C", texte:"#ffffff", pv:1, pts:20,
+   quip:["« Répondre à tous » neutralisé. Quarante personnes vous remercient sans le dire.", "Un « merci » envoyé à toute la direction. Traité.", "« Merci de ne pas répondre à tous. » Envoyé à tous."]},
+  {tag:"TTU", fond:"#E1000F", texte:"#ffffff", pv:1, pts:10,
+   quip:["TTU traité. Ce n'était ni très, ni très, ni urgent.", "Le TTU demandait un chiffre déjà dans le rapport. Renvoyé le rapport.", "TTU en majuscules, objet vide. Réponse en minuscules."]}
+];
+const VAGUES = ["LUNDI 9 H", "RETOUR DE CONGÉS", "VEILLE DE COPIL", "FIN DE GESTION", "AUDIT EN COURS", "LUNDI SUIVANT"];
+
+/* ---------- etat ---------- */
+let etat = "menu";           // menu | jeu | pause | vague | fin
+let mails = [], tirs = [], relances = [], abris = [];
+let dirForm = 1, vitesseForm = 24, descente = 0, prochainTir = 1.5;
+let joueur = {x: W / 2, cible: W / 2, w: 44};
+let traites = 0, cafes = 3, vague = 1, points = 0, son = true;
+let secousse = 0, flashs = [], eclats = [], bulles = [], invulnerable = 0;
+
+/* ---------- audio ---------- */
+let ac = null;
+function bip(freq, dur, type){
+  if(!son) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+btnSon.addEventListener("click", () => {
+  son = !son;
+  btnSon.textContent = "Son : " + (son ? "activé" : "coupé");
+  btnSon.setAttribute("aria-pressed", String(son));
+});
+
+/* ---------- rendu adaptatif + plein ecran ---------- */
+let enPlein = false;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  let cssW, cssH;
+  if(enPlein){
+    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(window.innerWidth / W, dispoH / H);
+    cssW = Math.floor(W * s); cssH = Math.floor(H * s);
+    cv.style.width = cssW + "px";
+  } else {
+    cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
+    cssW = board.clientWidth || W;
+    cssH = cssW * H / W;
+  }
+  cv.style.height = cssH + "px";
+  cv.width = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+  const s = (cssW / W) * dpr;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("load", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+  enPlein = on;
+  setTimeout(resize, 60);
+  if(on) majBarre();
+});
+
+// Inclinaison : gamma donne une position absolue, comme au casse-brique.
+Arcade.inclinaison(document.getElementById("btn-inclinaison"), ({gamma}) => {
+  if(etat !== "jeu") return;
+  const MAX = 26;
+  const g = Math.max(-MAX, Math.min(MAX, gamma));
+  joueur.cible = W / 2 + (g / MAX) * (W / 2);
+});
+
+/* ---------- construction ---------- */
+function formation(){
+  mails = [];
+  const x0 = (W - (COLS - 1) * PAS_X - MW) / 2;
+  const y0 = 64 + Math.min(80, (vague - 1) * 12);
+  for(let r = 0; r < LIGNES; r++)
+    for(let c = 0; c < COLS; c++)
+      mails.push({x: x0 + c * PAS_X, y: y0 + r * PAS_Y, type: r, pv: TYPES[r].pv, vivant: true});
+  dirForm = 1;
+  vitesseForm = 22 * Math.pow(1.15, vague - 1);
+  prochainTir = 1.6;
+  tirs = []; relances = [];
+}
+function construireAbris(){
+  // Quatre reponses automatiques d'absence, en cellules qui s'effritent.
+  abris = [];
+  for(let a = 0; a < 4; a++){
+    const x0 = 100 + a * 170;
+    for(let r = 0; r < 3; r++)
+      for(let c = 0; c < 6; c++)
+        abris.push({x: x0 + c * 10, y: 372 + r * 8, w: 10, h: 8, vivant: true});
+  }
+}
+function nouvellePartie(){
+  traites = 0; cafes = 3; vague = 1; points = 0;
+  joueur = {x: W / 2, cible: W / 2, w: 44};
+  flashs = []; eclats = []; bulles = []; secousse = 0; invulnerable = 0;
+  construireAbris();
+  formation();
+  majHud();
+  log("84 non lus. Le premier commence par « Bonjour à tous ».");
+}
+
+/* ---------- interactions ---------- */
+function repondre(){
+  if(etat !== "jeu") return;
+  if(tirs.length) return;               // une reponse a la fois
+  tirs.push({x: joueur.x, y: Y_BUREAU - 26, v: 430});
+  bip(620, .05);
+}
+const touches = {};
+window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
+  touches[e.key] = true;
+  if(e.key === " " || e.key === "Enter" || e.key === "ArrowUp"){
+    e.preventDefault();
+    if(etat === "menu" || etat === "fin" || etat === "vague"){ btnEl.click(); return; }
+    repondre();
+  }
+  if(e.key === "p" || e.key === "P") basculerPause();
+});
+window.addEventListener("keyup", e => { touches[e.key] = false; });
+
+function versLogique(clientX){
+  const r = cv.getBoundingClientRect();
+  return (clientX - r.left) / r.width * W;
+}
+cv.addEventListener("mousemove", e => { joueur.cible = versLogique(e.clientX); });
+cv.addEventListener("mousedown", repondre);
+// Tactile : le doigt deplace, un tap sans mouvement repond.
+let depart = null, glisse = false;
+cv.addEventListener("touchstart", e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  depart = {x: t.clientX, y: t.clientY}; glisse = false;
+  joueur.cible = versLogique(t.clientX);
+}, {passive:false});
+cv.addEventListener("touchmove", e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  joueur.cible = versLogique(t.clientX);
+  if(depart && Math.abs(t.clientX - depart.x) > 14) glisse = true;
+}, {passive:false});
+cv.addEventListener("touchend", () => { if(depart && !glisse) repondre(); depart = null; }, {passive:true});
+
+function basculerPause(){
+  if(etat === "jeu"){ etat = "pause"; montrer("Boîte en pause", "Les mails n'arrivent plus. C'est faux, mais on fait comme si.", "Reprendre"); }
+  else if(etat === "pause"){ cacher(); etat = "jeu"; }
+}
+function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
+  titreEl.textContent = titre; texteEl.textContent = texte;
+  btnEl.textContent = bouton; ecran.hidden = false;
+}
+function cacher(){ ecran.hidden = true; }
+btnEl.addEventListener("click", () => {
+  if(etat === "pause"){ etat = "jeu"; cacher(); return; }
+  if(etat === "vague"){ formation(); etat = "jeu"; cacher(); return; }
+  nouvellePartie();
+  etat = "jeu"; cacher();
+});
+
+let dernierMot = "";
+function log(txt){ dernierMot = txt; journal.ecrire(txt); majBarre(); }
+function majHud(){
+  hudTraites.textContent = traites;
+  hudCafes.textContent = cafes;
+  hudVague.textContent = vague;
+  majBarre();
+}
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(points + " pts · " + cafes + " cafés");
+  pleinEcran.message(dernierMot);
+}
+
+/* ---------- boucle ---------- */
+let dernier = performance.now();
+function boucle(now){
+  const dt = Math.min((now - dernier) / 1000, .05);
+  dernier = now;
+  if(etat === "jeu") maj(dt);
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  for(let i = eclats.length - 1; i >= 0; i--){ const p = eclats[i]; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.vie -= dt; if(p.vie <= 0) eclats.splice(i, 1); }
+  for(let i = bulles.length - 1; i >= 0; i--){ bulles[i].y -= 26 * dt; bulles[i].vie -= dt; if(bulles[i].vie <= 0) bulles.splice(i, 1); }
+  dessiner();
+  requestAnimationFrame(boucle);
+}
+
+function vivants(){ return mails.filter(m => m.vivant); }
+
+function maj(dt){
+  // joueur
+  if(touches["ArrowLeft"] || touches["q"] || touches["a"]) joueur.cible -= 520 * dt;
+  if(touches["ArrowRight"] || touches["d"]) joueur.cible += 520 * dt;
+  joueur.cible = Math.max(joueur.w / 2 + 6, Math.min(W - joueur.w / 2 - 6, joueur.cible));
+  joueur.x += (joueur.cible - joueur.x) * Math.min(1, dt * 16);
+  if(invulnerable > 0) invulnerable -= dt;
+
+  // formation : plus il en reste peu, plus ca va vite ; les TTU encore plus
+  const v = vivants();
+  if(!v.length) return vagueTerminee();
+  const facteur = 1 + (1 - v.length / (COLS * LIGNES)) * 3.2;
+  let dx = dirForm * vitesseForm * facteur * dt;
+  let bord = false;
+  for(const m of v){
+    if((dirForm > 0 && m.x + MW + dx > W - 10) || (dirForm < 0 && m.x + dx < 10)) bord = true;
+  }
+  if(bord){ dirForm = -dirForm; for(const m of v) m.y += 14; }
+  else for(const m of v) m.x += dx * (m.type === 3 && v.length <= 6 ? 1.6 : 1);
+  for(const m of v) if(m.y + MH >= Y_LIMITE) return boitePleine();
+
+  // relances : un mail du bas d'une colonne au hasard
+  prochainTir -= dt;
+  if(prochainTir <= 0){
+    prochainTir = Math.max(.45, 1.5 - vague * .12) * (.7 + Math.random() * .6);
+    const cols = {};
+    for(const m of v){ const c = Math.round(m.x / PAS_X); if(!cols[c] || cols[c].y < m.y) cols[c] = m; }
+    const bas = Object.values(cols);
+    const m = bas[Math.floor(Math.random() * bas.length)];
+    relances.push({x: m.x + MW / 2, y: m.y + MH, v: 170 + vague * 14});
+    bip(240, .03);
+  }
+
+  // reponses
+  for(let i = tirs.length - 1; i >= 0; i--){
+    const t = tirs[i];
+    t.y -= t.v * dt;
+    if(t.y < BANDEAU){ tirs.splice(i, 1); continue; }
+    let touche = false;
+    for(const a of abris){
+      if(a.vivant && t.x >= a.x && t.x <= a.x + a.w && t.y >= a.y && t.y <= a.y + a.h){ a.vivant = false; touche = true; break; }
+    }
+    if(!touche){
+      for(const m of v){
+        if(t.x >= m.x - 2 && t.x <= m.x + MW + 2 && t.y >= m.y && t.y <= m.y + MH){
+          touche = true; traiter(m); break;
+        }
+      }
+    }
+    if(touche) tirs.splice(i, 1);
+  }
+
+  // relances qui tombent
+  for(let i = relances.length - 1; i >= 0; i--){
+    const r = relances[i];
+    r.y += r.v * dt;
+    if(r.vx) r.x += r.vx * dt;
+    if(r.y > H){ relances.splice(i, 1); continue; }
+    let touche = false;
+    for(const a of abris){
+      if(a.vivant && r.x >= a.x && r.x <= a.x + a.w && r.y >= a.y && r.y <= a.y + a.h){ a.vivant = false; touche = true; break; }
+    }
+    if(!touche && invulnerable <= 0 && r.y >= Y_BUREAU - 30 && r.y <= Y_BUREAU + 6 &&
+       Math.abs(r.x - joueur.x) < joueur.w / 2 + 4){
+      touche = true; perdreCafe();
+    }
+    if(touche) relances.splice(i, 1);
+  }
+}
+
+function traiter(m){
+  const t = TYPES[m.type];
+  m.pv--;
+  eclater(m.x + MW / 2, m.y + MH / 2, t.fond, 5);
+  if(m.pv > 0){ bip(300, .04); bulles.push({x: m.x + MW / 2, y: m.y, t: "ENCORE " + m.pv, vie: .7}); return; }
+  m.vivant = false;
+  traites++; points += t.pts;
+  flashs.push({x: m.x, y: m.y, w: MW, h: MH, t: .16});
+  eclater(m.x + MW / 2, m.y + MH / 2, t.fond, 9);
+  secousse = Math.max(secousse, .08);
+  bip(700, .06);
+  if(m.type === 2){
+    // Repondre a tous : une salve de relances vers vous.
+    for(const k of [-1, 0, 1]) relances.push({x: m.x + MW / 2 + k * 18, y: m.y + MH, v: 200 + vague * 14, vx: k * 40});
+    bip(200, .12, "sawtooth");
+  }
+  log(t.quip[Math.floor(Math.random() * t.quip.length)]);
+  majHud();
+}
+function eclater(x, y, c, n){
+  for(let i = 0; i < n; i++)
+    eclats.push({x, y, vx: (Math.random() - .5) * 180, vy: (Math.random() - .8) * 160, vie: .5, c, s: 2 + Math.random() * 3});
+}
+
+function perdreCafe(){
+  cafes--;
+  secousse = .35;
+  invulnerable = 1.2;
+  bip(140, .25, "sawtooth");
+  majHud();
+  if(cafes <= 0){
+    etat = "fin";
+    montrer("Plus de café",
+      "Trois relances encaissées, la machine est vide. " + traites + " mail" + (traites > 1 ? "s" : "") + " traité" + (traites > 1 ? "s" : "") + ", " + points + " points.",
+      "Refaire du café");
+    tableau.fin(scoresEl, points, "vague " + vague + " · " + traites + " traités");
+    log("La machine à café est vide. La boîte, non.");
+  } else {
+    log("Une relance vous a atteint. « Sauf erreur de ma part, vous n'avez pas répondu. » Un café de moins.");
+  }
+}
+function boitePleine(){
+  etat = "fin";
+  secousse = .4;
+  bip(120, .3, "sawtooth");
+  montrer("Boîte pleine",
+    "La formation a atteint votre bureau. Le quota est dépassé, plus rien ne part, plus rien n'arrive. " + traites + " mail" + (traites > 1 ? "s" : "") + " traité" + (traites > 1 ? "s" : "") + ", " + points + " points.",
+    "Vider la corbeille");
+  tableau.fin(scoresEl, points, "vague " + vague + " · " + traites + " traités");
+  log("Boîte pleine. Le message d'erreur est lui aussi bloqué.");
+}
+function vagueTerminee(){
+  vague++;
+  cafes = Math.min(3, cafes + 1);
+  points += 50;
+  majHud();
+  etat = "vague";
+  montrer("Zéro non lu",
+    "La boîte est vide. Ça ne dure jamais : la vague suivante arrive plus bas et plus vite. Un café offert.",
+    "Vague " + vague + " — " + VAGUES[(vague - 1) % VAGUES.length].toLowerCase());
+  log("Zéro non lu à " + (9 + vague) + " h. Capture d'écran, personne ne vous croira.");
+}
+
+/* ---------- dessin ---------- */
+// Enveloppe 8x6 : cadre X, papier B, rabat N.
+const ENVELOPPE = [
+  "XXXXXXXX",
+  "XNBBBBNX",
+  "XBNBBNBX",
+  "XBBNNBBX",
+  "XBBBBBBX",
+  "XXXXXXXX"];
+
+function dessiner(){
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 14;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, 25, "#000091", "#000082");
+  // ligne de la boite pleine
+  ctx.fillStyle = "rgba(225,0,15,.35)";
+  for(let x = 8; x < W; x += 16) ctx.fillRect(x, Y_LIMITE, 8, 2);
+
+  // mails
+  for(const m of mails){
+    if(!m.vivant) continue;
+    const t = TYPES[m.type];
+    pix.grille(ctx, ENVELOPPE, m.x, m.y, MW, {X: t.fond, B: "#f4f4ff", N: t.fond});
+    pix.texte(ctx, t.tag + (m.type === 0 ? "×" + (m.pv * 7 - 1) : ""), m.x + MW / 2, m.y + MH + 2, 1, "#c9c9ff", "center");
+  }
+
+  // abris : reponses automatiques d'absence
+  for(const a of abris){
+    if(!a.vivant) continue;
+    pix.biseau(ctx, a.x, a.y, a.w, a.h, 1, "#3a3a8a");
+  }
+  for(let k = 0; k < 4; k++) pix.texte(ctx, "ABSENT", 130 + k * 170, 362, 1, "rgba(255,255,255,.35)", "center");
+
+  // relances
+  for(const r of relances){
+    ctx.fillStyle = "#E1000F";
+    ctx.fillRect(r.x - 2, r.y - 10, 4, 10);
+    ctx.fillStyle = "#ffb3b8";
+    ctx.fillRect(r.x - 2, r.y - 10, 4, 3);
+  }
+  // reponses
+  for(const t of tirs){
+    pix.lueur(ctx, t.x, t.y, 16, "#FFCA00", .35);
+    pix.grille(ctx, ENVELOPPE, t.x - 8, t.y - 6, 16, {X: "#FFCA00", B: "#fff8d6", N: "#8a6b00"});
+  }
+
+  // bureau et vous
+  const visible = invulnerable <= 0 || Math.floor(performance.now() / 80) % 2 === 0;
+  pix.biseau(ctx, joueur.x - joueur.w / 2, Y_BUREAU, joueur.w, 12, 3, "#ffffff");
+  ctx.fillStyle = "#E1000F"; ctx.fillRect(joueur.x - joueur.w / 2 + 3, Y_BUREAU + 9, joueur.w - 6, 3);
+  if(visible){
+    pix.lueur(ctx, joueur.x, Y_BUREAU - 8, 30, "#FFCA00", .25);
+    pix.personne(ctx, joueur.x - 11, Y_BUREAU - 26, 22, {chemise: "#FFCA00", cheveux: "#e9eaf2", cravate: "#161616"});
+  }
+
+  // flashs, eclats, bulles
+  for(const fl of flashs){
+    const k = fl.t / .16, e = (1 - k) * 8;
+    ctx.globalAlpha = k;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(fl.x - e, fl.y - e, fl.w + 2 * e, fl.h + 2 * e);
+  }
+  ctx.globalAlpha = 1;
+  for(const p of eclats){
+    ctx.globalAlpha = Math.max(0, p.vie / .5);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x, p.y, p.s, p.s);
+  }
+  ctx.globalAlpha = 1;
+  for(const b of bulles){
+    ctx.globalAlpha = Math.min(1, b.vie);
+    pix.texte(ctx, b.t, b.x, b.y - 12, 1.25, "#ffffff", "center");
+  }
+  ctx.globalAlpha = 1;
+
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // bandeau
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(0, 0, W, BANDEAU);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(0, BANDEAU - 3, W, 3);
+  pix.texte(ctx, "VAGUE " + vague + " — " + VAGUES[(vague - 1) % VAGUES.length] + "  ·  " + points + " PTS", 14, 13, 2, "#FFCA00");
+  let ax = W - 14;
+  pix.texte(ctx, "NON LUS " + vivants().length, ax, 15, 1.5, "#c9c9ff", "right");
+  ax -= 120;
+  for(let i = 0; i < 3; i++){
+    // tasses de cafe
+    pix.biseau(ctx, ax - 14, 13, 12, 12, 2, i < cafes ? "#ffffff" : "#3a3a8a", i >= cafes);
+    if(i < cafes){ ctx.fillStyle = "#6b3e1e"; ctx.fillRect(ax - 12, 15, 8, 4); }
+    ax -= 17;
+  }
+  pix.texte(ctx, "CAFÉS", ax - 6, 15, 1.5, "#8f8fd8", "right");
+  ctx.restore();
+}
+
+/* ---------- demarrage ---------- */
+resize();
+nouvellePartie();
+etat = "menu";
+requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

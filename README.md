@@ -12,6 +12,8 @@ En ligne : <https://miweb-games.lab.miweb.run>
 | Casse-brique du chef de projet | `casse-brique/` | Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber en trois COPIL. |
 | Snake — Constituez votre équipe web | `snake/` | Vous démarrez seul. Quarante métiers du web à recruter ; chaque profil allonge l'équipe et la rend plus dure à diriger. |
 | La chaîne de validation | `validation/` | Un dossier à pousser du cadrage à la mise en ligne, à travers dix instances dont les obstacles circulent. Percuté, il repart du départ ; la fin de gestion, elle, n'attend pas. |
+| Les guichets | `guichets/` | Quatre comptoirs, une seule personne. Les usagers avancent, vous lancez des réponses qui glissent jusqu'à eux et rattrapez les retours. Un usager au bout du comptoir saisit le médiateur. |
+| La boîte de réception | `inbox/` | Les mails descendent en formation (TTU, répondre à tous, relances, transferts de vingt échanges). Vous répondez d'en bas derrière vos réponses d'absence. Boîte pleine, partie finie. |
 | Le support N1 du site | `support/` | Le premier niveau d'un site sous Drupal. Douze guichets, les tickets sortent la tête (bug CSS, accès Totem, BO muet). Taper avant la remontée en N2, sauf la demande du cabinet, qu'on escalade. |
 
 ## Structure
@@ -24,6 +26,8 @@ casse-brique/       jeu 1
 snake/              jeu 2
 validation/         jeu 3 (canvas 960×560, proche du 16/9)
 support/            jeu 4 (canvas 800×490)
+guichets/           jeu 5 (canvas 800×490)
+inbox/              jeu 6 (canvas 800×490)
 ```
 
 Chaque jeu reste autonome : son moteur vit dans son `index.html`. Sont mutualisés la coquille
@@ -96,6 +100,8 @@ Chaque jeu accélère avec la progression, et le dit dans le bandeau et le journ
 - **Casse-brique** : trois lots, puis le marché est renouvelé (« cycle 2 ») avec les mêmes murs, un COPIL de plus et une balle 12 % plus rapide à chaque cycle. Plus de fin par victoire, le score est la charge en jours-homme.
 - **Snake** : un palier tous les dix profils. La vitesse gagne un cran par palier, la dette technique tombe tous les trois recrutements à partir du palier 3.
 - **Validation** : un exercice tous les trois dossiers, 6 % par dossier et 12 % de plus par exercice.
+- **Guichets** : une heure tous les huit usagers servis, cadence et vitesse de marche en hausse.
+- **Boîte de réception** : chaque vague repart plus bas et 15 % plus vite ; la formation accélère à mesure qu'elle se vide, les TTU encore plus.
 - **Support** : trois phases de journée (matin, après-midi, fin de journée), chacune plus nerveuse, avec plus de demandes du cabinet le soir. Chemise et bulle sont tirées au hasard : la couleur ne dit rien du ticket, seule l'étiquette compte.
 
 Le tableau des scores est **local au navigateur** (`Arcade.scores(cle)`, dix entrées par jeu dans le

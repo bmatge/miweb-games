@@ -737,7 +737,9 @@
     { cle: "casse-brique", nom: "Casse-brique du chef de projet", unite: "jours-homme" },
     { cle: "snake",        nom: "Snake, constituez votre équipe web", unite: "profils" },
     { cle: "validation",   nom: "La chaîne de validation", unite: "dossiers en ligne" },
-    { cle: "support",      nom: "Le support N1 du site", unite: "points" }
+    { cle: "support",      nom: "Le support N1 du site", unite: "points" },
+    { cle: "guichets",     nom: "Les guichets", unite: "points" },
+    { cle: "inbox",        nom: "La boîte de réception", unite: "points" }
   ];
   var CLE_PSEUDO = "miweb-games:pseudo", PSEUDO_MAX = 14;
   // Apres l'inscription, la touche Entree qui a valide le formulaire ne doit

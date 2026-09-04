@@ -17,7 +17,7 @@ const path = require("path");
 
 const FICHIER = process.env.SCORES_FICHIER || "/data/scores.json";
 const PORT = +(process.env.PORT || 3000);
-const JEUX = ["casse-brique", "snake", "validation", "support"];
+const JEUX = ["casse-brique", "snake", "validation", "support", "guichets", "inbox"];
 const MAX_GARDE = 50, MAX_TOP = 10, PSEUDO_MAX = 14, DETAIL_MAX = 60, SCORE_MAX = 1e6;
 const DEBIT_MS = 1500;
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>miweb games — petits jeux du web</title>
-<meta name="description" content="Petits jeux web autonomes sur les coulisses d'un projet numérique : casse-brique du chef de projet, snake des métiers du web, chaîne de validation, support N1.">
+<meta name="description" content="Petits jeux web autonomes sur les coulisses d'un projet numérique : casse-brique du chef de projet, snake des métiers du web, chaîne de validation, support N1, guichets, boîte de réception.">
 <link rel="stylesheet" href="assets/arcade.css?v=5">
 <style>
   /* L'accueil partage la salle d'arcade des jeux : memes jetons, meme
@@ -96,11 +96,11 @@
 </head>
 <body>
 <header class="enseigne">
-  <canvas id="enseigne" width="1120" height="150" role="img" aria-label="miweb games : quatre petits jeux sur les coulisses d'un projet web"></canvas>
+  <canvas id="enseigne" width="1120" height="150" role="img" aria-label="miweb games : six petits jeux sur les coulisses d'un projet web"></canvas>
 </header>
 
 <div class="wrap">
-  <p class="chapo"><strong>Quatre petits jeux sur les coulisses d'un projet web.</strong> Une page chacun, pas de dépendance, pas de compte, pas de pistage. Jouables au clavier, au doigt et à l'inclinaison, en plein écran sur mobile. Le tableau des scores est partagé entre tous les joueurs.</p>
+  <p class="chapo"><strong>Six petits jeux sur les coulisses d'un projet web.</strong> Une page chacun, pas de dépendance, pas de compte, pas de pistage. Jouables au clavier, au doigt et à l'inclinaison, en plein écran sur mobile. Le tableau des scores est partagé entre tous les joueurs.</p>
 
   <div class="grille">
 
@@ -155,6 +155,34 @@
           <span class="tag">Une journée en 90 s</span>
           <span class="tag">Réflexes</span>
           <span class="tag">Souris · doigt · clavier</span>
+        </div>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
+      </div>
+    </a>
+
+    <a class="card" href="guichets/" data-jeu="guichets">
+      <canvas class="vignette" id="vig-guichets" width="320" height="180" role="img" aria-label="Aperçu : quatre files d'usagers avancent vers des comptoirs colorés"></canvas>
+      <div class="card-corps">
+        <h2><span class="num">05</span>Les guichets</h2>
+        <p>Quatre comptoirs en parallèle : téléphone, mail, formulaire, accueil. Les usagers avancent, vous changez de file et vous lancez une réponse qui glisse jusqu'à eux. Rattrapez les retours. Un usager au bout du comptoir, c'est le médiateur.</p>
+        <div class="tags">
+          <span class="tag">4 files</span>
+          <span class="tag">Nerveux</span>
+          <span class="tag">Clavier · doigt</span>
+        </div>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
+      </div>
+    </a>
+
+    <a class="card" href="inbox/" data-jeu="inbox">
+      <canvas class="vignette" id="vig-inbox" width="320" height="180" role="img" aria-label="Aperçu : des enveloppes en formation descendent vers un bureau"></canvas>
+      <div class="card-corps">
+        <h2><span class="num">06</span>La boîte de réception</h2>
+        <p>Les mails descendent en formation : TTU, répondre à tous, relances, et ce transfert d'une conversation de vingt échanges où l'on vous ajoute à la fin. Vous répondez d'en bas, vos réponses d'absence encaissent. Boîte pleine, partie finie.</p>
+        <div class="tags">
+          <span class="tag">Vagues</span>
+          <span class="tag">3 cafés</span>
+          <span class="tag">Clavier · doigt · inclinaison</span>
         </div>
         <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
       </div>
@@ -260,6 +288,30 @@
   tk(1, "#6a2ea0", "#ffffff", "#161616", "BUG CSS");
   tk(3, "#ffffff", "#0078a8", "#ffffff", "ACCUEIL HS");
   tk(5, "#FFCA00", "#E1000F", "#ffffff", "CABINET");
+  // guichets
+  c = toile("vig-guichets");
+  const ENV = ["XXXXXXXX","XNBBBBNX","XBNBBNBX","XBBNNBBX","XBBBBBBX","XXXXXXXX"];
+  [["#0078a8",[250,150]],["#6a2ea0",[290]],["#18753C",[180,260]],["#e8730a",[220]]].forEach(([f, xs], i) => {
+    const y = 18 + i * 40.5;
+    c.fillStyle = i % 2 ? "rgba(0,0,0,.14)" : "rgba(0,0,0,.06)"; c.fillRect(0, y, 320, 40);
+    P.biseau(c, 0, y + 22, 40, 14, 2, f);
+    xs.forEach(x => P.personne(c, x, y + 8, 16, {chemise: "#ffffff", cheveux: P.CHEVEUX[(x + i) % 6], peau: P.PEAUX[(x + i) % 4]}));
+  });
+  P.personne(c, 12, 18 + 2 * 40.5 - 2, 16, {chemise: "#FFCA00", cheveux: "#e9eaf2", cravate: "#161616"});
+  P.grille(c, ENV, 70, 18 + 2 * 40.5 + 20, 18, {X: "#FFCA00", B: "#fff8d6", N: "#8a6b00"});
+  // inbox
+  c = toile("vig-inbox");
+  [["#6a2ea0","FW"],["#0078a8","RE"],["#18753C","CC"],["#E1000F","TTU"]].forEach(([f, tag], r) => {
+    for(let k = 0; k < 6; k++){
+      if((r + k) % 5 === 3) continue;
+      P.grille(c, ENV, 34 + k * 44, 26 + r * 26, 24, {X: f, B: "#f4f4ff", N: f});
+    }
+  });
+  for(let k = 0; k < 3; k++) for(let j = 0; j < 4; j++) P.biseau(c, 70 + k * 80 + j * 8, 138, 8, 6, 1, "#3a3a8a");
+  P.biseau(c, 140, 164, 40, 8, 2, "#ffffff");
+  P.personne(c, 152, 146, 16, {chemise: "#FFCA00", cheveux: "#e9eaf2", cravate: "#161616"});
+  P.lueur(c, 160, 130, 12, "#FFCA00", .4);
+  P.grille(c, ENV, 154, 126, 12, {X: "#FFCA00", B: "#fff8d6", N: "#8a6b00"});
 
   /* ---------- enseigne : titre pixel et mode attente ---------- */
   // Un petit plateau qui tourne tout seul, comme une borne qui attend le
@@ -280,7 +332,7 @@
     P.damier(ctx, 0, 0, EW, EH, 30, "#000091", "#000082");
     // titre
     P.texte(ctx, "MIWEB GAMES", 24, 30, 6, "#FFCA00");
-    P.texte(ctx, "QUATRE JEUX SUR LES COULISSES D'UN PROJET WEB", 24, 86, 1.5, "#c9c9ff");
+    P.texte(ctx, "SIX JEUX SUR LES COULISSES D'UN PROJET WEB", 24, 86, 1.5, "#c9c9ff");
     P.texte(ctx, "INSÉREZ UN DOSSIER", 24, 108, 1.5, Math.floor(t / 600) % 2 ? "#8f8fd8" : "#ffffff");
     // scene d'attente a droite
     const x0 = 560;
