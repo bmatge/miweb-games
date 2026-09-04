@@ -43,14 +43,25 @@ passe par `fillRect`. `Arcade.pix` expose les primitives partagées :
 - `tete(ctx, x, y, taille, dir, langue)` — tête du serpent 8×8, tournée selon le cap.
 - `agent(ctx, …)` (14×14, chemise paramétrable) et `balle(ctx, cx, cy, r)` (8×8).
 
+- `texte(ctx, txt, x, y, u, couleur, align)` — police pixel 5×7 maison (majuscules, chiffres,
+  ponctuation, accents sur une rangée au-dessus). `texteAjuste` réduit `u` pour tenir dans une
+  largeur : c'est ce qui écrit les étiquettes de briques, les bandeaux et les bulles.
+- `damier`, `cadre`, `lueur` — le plateau : fond à deux tons, cadre enfoncé, halo radial (le
+  seul rendu non pixel, réservé à la balle, à la tête du serpent et aux cibles).
+
 La grille de 8 pour les cases n'est pas un choix esthétique mais de lisibilité : une case du
 snake fait 26 px sur le canvas logique, 12 à 18 px sur un téléphone. À cette taille, un sprite
 de 16 devient une tache. `imageSmoothingEnabled` ne joue pas ici, il ne concerne que
 `drawImage`.
 
+Les impacts sont soulignés par deux effets purement visuels, tenus hors des règles : un
+**flash** blanc qui s'étend puis s'éteint (brique cassée, profil recruté) et une **secousse**
+du plateau (`ctx.translate` aléatoire décroissant : casse, socle heurté, balle perdue, fin de
+partie). Le fond est peint plus large que le canvas pour que la secousse ne découvre pas de bord.
+
 Le fond bleu `#000091` et les couleurs de familles sont conservés : c'est l'identité des
 plateaux. La coquille autour, elle, ne suit plus le DSFR — palette sombre, monospace système
-pour les compteurs et titres. Seul l'accueil reste dans le registre institutionnel.
+pour les compteurs. Seul l'accueil reste dans le registre institutionnel.
 
 ## Ligne de flottaison
 

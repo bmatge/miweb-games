@@ -201,6 +201,7 @@ let etat = "menu";          // menu | jeu | pause | lot | fin | victoire
 let niveau = 0, copil = 3, charge = 0;
 let briques = [], balles = [], bonus = [], eclats = [], bulles = [];
 let collee = true, son = true;
+let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
 
 const barre = {x: W/2 - 55, y: 512, w: 110, h: 14, cible: W/2, vitesseTouche: 0};
 let renfortT = 0, malusT = 0;
@@ -364,6 +365,8 @@ function boucle(now){
   const dt = Math.min((now - dernier) / 1000, .033);
   dernier = now;
   if(etat === "jeu") maj(dt);
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
   dessiner();
   requestAnimationFrame(boucle);
 }
@@ -462,6 +465,7 @@ function maj(dt){
 
 function toucher(br){
   if(br.type === "socle"){
+    secousse = Math.max(secousse, .1);
     bip(120, .07, "sawtooth");
     bulle("Non négociable", br.x + br.w/2, br.y);
     return;
@@ -473,6 +477,8 @@ function toucher(br){
     return;
   }
   br.vivante = false;
+  flashs.push({x: br.x, y: br.y, w: br.w, h: br.h, t: .16});
+  secousse = Math.max(secousse, .14);
   charge += TYPES[br.type].pts;
   majHud();
   eclater(br, TYPES[br.type].fond);
@@ -504,6 +510,7 @@ function appliquerBonus(i){
 
 function perdreCopil(){
   copil--;
+  secousse = .35;
   majHud();
   if(copil <= 0){
     etat = "fin";
@@ -537,26 +544,32 @@ function lotTermine(){
 // Tout le rendu passe par Arcade.pix : les regles du jeu ne savent rien de
 // la facture. Biseau de 3 px sur les briques, sprites en grille de 8 et 14.
 function dessiner(){
-  ctx.fillStyle = "#000091";
-  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 14;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
 
-  // bandeau : lot a gauche, compteurs a droite. Il double le HUD de la page,
-  // qui disparait en paysage sur mobile pour laisser la hauteur au plateau.
+  // plateau : damier deux tons, cadre enfonce
+  pix.damier(ctx, 0, 43, W, H - 43, 40, "#000091", "#000082");
+  pix.cadre(ctx, 0, 43, W, H - 43, 3);
+
+  // bandeau : lot a gauche ; a droite les COPIL restants en petits agents,
+  // puis la charge et le reste. Il double le HUD de la page, qui disparait
+  // en paysage sur mobile pour laisser la hauteur au plateau.
   ctx.fillStyle = "#00006e";
   ctx.fillRect(0, 0, W, 40);
-  ctx.fillStyle = "#FFCA00";
-  ctx.font = "700 14px " + pix.MONO;
-  ctx.textAlign = "left"; ctx.textBaseline = "middle";
-  ctx.fillText(NIVEAUX[Math.min(niveau, NIVEAUX.length-1)].nom.toUpperCase(), 14, 20);
-  ctx.textAlign = "right";
-  ctx.font = "400 12px " + pix.MONO;
-  ctx.fillStyle = "#c9c9ff";
-  ctx.fillText("COPIL ×" + copil + "  ·  " + charge + " J-H  ·  RESTE " + restantes(), W - 14, 20);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, 40, W, 3);
+  pix.texte(ctx, NIVEAUX[Math.min(niveau, NIVEAUX.length-1)].nom, 14, 13, 2, "#FFCA00");
+  const droite = pix.texte(ctx, charge + " J-H  ·  RESTE " + restantes(), W - 14, 15, 1.5, "#c9c9ff", "right");
+  let ax = W - 14 - droite - 26;
+  for(let i = 0; i < copil; i++){ pix.agent(ctx, ax - 14, 12, 14, "#FFCA00"); ax -= 17; }
+  pix.texte(ctx, "COPIL", ax - 6, 15, 1.5, "#8f8fd8", "right");
 
   // briques
-  ctx.textAlign = "center";
   for(const br of briques){
     if(!br.vivante) continue;
     const t = TYPES[br.type];
@@ -572,23 +585,24 @@ function dessiner(){
     if(br.type === "norme" && br.pv === 1){
       // Fissure : un zigzag de pixels sombres, la brique tient encore un coup.
       ctx.fillStyle = "rgba(0,0,145,.35)";
-      const fx = br.x + br.w * .72;
+      const fx = br.x + br.w * .8;
       ctx.fillRect(fx, br.y + 3, 3, 4);
       ctx.fillRect(fx - 3, br.y + 7, 3, 5);
       ctx.fillRect(fx, br.y + 12, 3, 5);
       ctx.fillRect(fx - 3, br.y + 17, 3, 4);
       ctx.fillRect(fx + 3, br.y + 21, 3, 4);
     }
-    ctx.fillStyle = t.texte;
-    let taille = 11;
-    const label = br.label.toUpperCase();
-    ctx.font = "700 " + taille + "px " + pix.MONO;
-    while(ctx.measureText(label).width > br.w - 12 && taille > 7){
-      taille--;
-      ctx.font = "700 " + taille + "px " + pix.MONO;
-    }
-    ctx.fillText(label, br.x + br.w/2, br.y + br.h/2 + 1);
+    pix.texteAjuste(ctx, br.label, br.x + br.w / 2, br.y + br.h / 2 - 5, br.w - 12, 1.5, t.texte, "center");
   }
+
+  // flashs de casse : la brique s'allume en blanc et s'eteint
+  for(const fl of flashs){
+    const k = fl.t / .16, e = (1 - k) * 8;
+    ctx.globalAlpha = k;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(fl.x - e, fl.y - e, fl.w + 2 * e, fl.h + 2 * e);
+  }
+  ctx.globalAlpha = 1;
 
   // éclats
   for(const p of eclats){
@@ -601,37 +615,37 @@ function dessiner(){
   // bonus
   for(const bo of bonus){
     const t = TYPES_BONUS[bo.type];
+    pix.lueur(ctx, bo.x, bo.y, 22, t.couleur === "#000091" ? "#ffffff" : t.couleur, .3);
     pix.biseau(ctx, bo.x - 13, bo.y - 9, 26, 18, 2, t.couleur);
-    ctx.fillStyle = "#fff";
-    ctx.font = "700 13px " + pix.MONO;
-    ctx.fillText(t.c, bo.x, bo.y + 1);
+    pix.texte(ctx, t.c, bo.x, bo.y - 7, 2, "#ffffff", "center");
   }
 
   // barre + chef de projet
   pix.biseau(ctx, barre.x, barre.y, barre.w, barre.h, 3, "#ffffff");
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(barre.x + 3, barre.y + barre.h - 3, barre.w - 6, 3);
-  const cx = barre.x + barre.w/2;
-  pix.agent(ctx, cx - 9, barre.y - 18, 18, "#FFCA00");
+  // Le chef se tient a gauche de la barre : au centre, la balle collee le
+  // masquait avant chaque lancement.
+  pix.agent(ctx, barre.x + 8, barre.y - 18, 18, "#FFCA00");
 
-  // balles
-  for(const b of balles) pix.balle(ctx, b.x, b.y, b.r);
+  // balles : lueur puis sprite
+  for(const b of balles){
+    pix.lueur(ctx, b.x, b.y, b.r * 3.2, "#FFCA00", .4);
+    pix.balle(ctx, b.x, b.y, b.r);
+  }
 
   // bulles de texte
-  ctx.font = "600 11px " + pix.MONO;
   for(const bu of bulles){
     ctx.globalAlpha = Math.min(1, bu.vie);
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(bu.t.toUpperCase(), bu.x, bu.y);
+    pix.texte(ctx, bu.t, bu.x, bu.y - 12, 1.5, "#ffffff", "center");
   }
   ctx.globalAlpha = 1;
 
   // consigne de lancement
   if(etat === "jeu" && collee){
-    ctx.fillStyle = "#c9c9ff";
-    ctx.font = "400 12px " + pix.MONO;
-    ctx.fillText("CLIC, DOIGT OU ESPACE POUR LANCER", W/2, barre.y - 38);
+    pix.texte(ctx, "CLIC, DOIGT OU ESPACE POUR LANCER", W/2, barre.y - 44, 1.5, "#c9c9ff", "center");
   }
+  ctx.restore();
 }
 
 /* ---------- démarrage ---------- */

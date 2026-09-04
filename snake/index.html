@@ -157,6 +157,7 @@ let etat = "menu";           // menu | jeu | pause | fin | victoire
 let serpent = [], dir = {x:1, y:0}, filedir = [];
 let cible = null, dettes = [], recrutes = [];
 let vitesse = 7, accu = 0, son = true, record = 0;
+let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
 hudRecord.textContent = record;
@@ -378,6 +379,8 @@ function boucle(now){
     const pas = 1 / vitesse;
     while(accu >= pas){ accu -= pas; avancer(); if(etat !== "jeu") break; }
   }
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
   dessiner();
   requestAnimationFrame(boucle);
 }
@@ -409,6 +412,7 @@ function avancer(){
 
 function recruter(){
   const m = cible;
+  flashs.push({x: m.x, y: m.y, t: .22});
   recrutes.push({nom: m.nom, famille: m.famille});
   bip(560 + recrutes.length * 8, .07);
   log(m.quip);
@@ -438,6 +442,7 @@ function recruter(){
 
 function perdre(raison){
   etat = "fin";
+  secousse = .4;
   bip(140, .25, "sawtooth");
   montrer("Projet interrompu",
     raison + " Équipe constituée : " + recrutes.length + " profil" +
@@ -451,35 +456,32 @@ function perdre(raison){
 // la facture. Grille de 8 pour les cases (26 px sur le canvas logique,
 // 12 a 18 px sur un telephone), les sprites plus fins deviendraient une tache.
 function dessiner(){
-  ctx.fillStyle = "#000091";
-  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 12;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
 
-  // bandeau
+  // plateau : damier deux tons, cadre enfonce
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, CELL, "#000091", "#000082");
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // bandeau : compteur a gauche, poste a pourvoir a droite avec son picto
   ctx.fillStyle = "#00006e";
   ctx.fillRect(0, 0, W, BANDEAU);
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#FFCA00";
-  ctx.font = "700 14px " + pix.MONO;
-  ctx.textAlign = "left";
-  ctx.fillText("ÉQUIPE " + recrutes.length + "/" + METIERS.length, 14, BANDEAU / 2);
-  ctx.textAlign = "right";
-  ctx.font = "400 12px " + pix.MONO;
-  ctx.fillStyle = "#c9c9ff";
-  ctx.fillText(cible ? "À RECRUTER : " + cible.nom.toUpperCase() : "TOUS LES POSTES SONT POURVUS",
-    W - 14, BANDEAU / 2);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, BANDEAU - 3, W, 3);
-
-  // grille
-  ctx.strokeStyle = "rgba(255,255,255,.06)";
-  ctx.lineWidth = 1;
-  for(let x = 1; x < COLS; x++){
-    ctx.beginPath();
-    ctx.moveTo(x * CELL + .5, BANDEAU); ctx.lineTo(x * CELL + .5, H); ctx.stroke();
-  }
-  for(let y = 1; y < ROWS; y++){
-    ctx.beginPath();
-    ctx.moveTo(0, BANDEAU + y * CELL + .5); ctx.lineTo(W, BANDEAU + y * CELL + .5); ctx.stroke();
+  pix.texte(ctx, "ÉQUIPE " + recrutes.length + "/" + METIERS.length, 14, 13, 2, "#FFCA00");
+  if(cible){
+    const f = FAMILLES[cible.famille];
+    const w = pix.texteAjuste(ctx, cible.nom, W - 14, 15, 360, 1.5, "#c9c9ff", "right");
+    pix.biseau(ctx, W - 14 - w - 28, 11, 18, 18, 2, f.fond);
+    pix.picto(ctx, cible.famille, W - 14 - w - 25, 14, 12, f.texte);
+    pix.texte(ctx, "À RECRUTER", W - 14 - w - 38, 15, 1.5, "#8f8fd8", "right");
+  } else {
+    pix.texte(ctx, "TOUS LES POSTES SONT POURVUS", W - 14, 15, 1.5, "#c9c9ff", "right");
   }
 
   const u = CELL / 8;
@@ -492,11 +494,12 @@ function dessiner(){
   }
 
   // cible : la couleur dit la famille, le pictogramme aussi ; le nom est
-  // dans le bandeau. La case respire pour attirer l'oeil.
+  // dans le bandeau. La case respire et luit pour attirer l'oeil.
   if(cible){
     const f = FAMILLES[cible.famille];
     const px = cible.x * CELL, py = BANDEAU + cible.y * CELL;
     const pulse = 1 + Math.sin(performance.now() / 220) * .07;
+    pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.4, f.fond === "#000091" ? "#ffffff" : f.fond, .28 * pulse);
     const t = (CELL - 4) * pulse;
     const x0 = px + (CELL - t) / 2, y0 = py + (CELL - t) / 2;
     pix.biseau(ctx, x0, y0, t, t, t / 8, f.fond);
@@ -509,6 +512,7 @@ function dessiner(){
     const s = serpent[i];
     const px = s.x * CELL, py = BANDEAU + s.y * CELL;
     if(i === 0){
+      pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.3, "#FFCA00", .3);
       pix.tete(ctx, px + 1, py + 1, CELL - 2, dir, langue && etat === "jeu");
     } else {
       // Le corps porte les couleurs des profils recrutes, du plus recent au
@@ -522,6 +526,17 @@ function dessiner(){
       ctx.strokeRect(px + 2.5, py + 2.5, CELL - 5, CELL - 5);
     }
   }
+
+  // flash de recrutement : la case s'allume en blanc et s'eteint
+  for(const fl of flashs){
+    const k = fl.t / .22;
+    ctx.globalAlpha = k * .9;
+    ctx.fillStyle = "#ffffff";
+    const e = (1 - k) * 6;
+    ctx.fillRect(fl.x * CELL - e, BANDEAU + fl.y * CELL - e, CELL + 2 * e, CELL + 2 * e);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 /* ---------- demarrage ---------- */

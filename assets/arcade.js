@@ -1,5 +1,6 @@
 /**
- * Socle commun aux jeux de miweb-games : plein ecran et pilotage a l'inclinaison.
+* Socle commun aux jeux de miweb-games : plein ecran, inclinaison, cadrage et
+ * sprites pixel (Arcade.pix).
  * Aucune dependance, expose un seul global `Arcade`.
  */
 (function (global) {
@@ -450,10 +451,172 @@
     grille(ctx, BALLE, cx - r, cy - r, 2 * r, PAL_BALLE);
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Police pixel 5x7                                                    */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Majuscules, chiffres et la ponctuation dont les jeux ont besoin. Les
+   * accents occupent une rangee au-dessus de la lettre (E accent aigu = E
+   * plus la marque), la cedille une rangee en dessous. Les minuscules sont
+   * remontees en majuscules : a cette taille, une police pixel n'a qu'une
+   * casse.
+   */
+  var GLYPHES = {
+    A: [".XXX.", "X...X", "X...X", "XXXXX", "X...X", "X...X", "X...X"],
+    B: ["XXXX.", "X...X", "X...X", "XXXX.", "X...X", "X...X", "XXXX."],
+    C: [".XXX.", "X...X", "X....", "X....", "X....", "X...X", ".XXX."],
+    D: ["XXXX.", "X...X", "X...X", "X...X", "X...X", "X...X", "XXXX."],
+    E: ["XXXXX", "X....", "X....", "XXXX.", "X....", "X....", "XXXXX"],
+    F: ["XXXXX", "X....", "X....", "XXXX.", "X....", "X....", "X...."],
+    G: [".XXX.", "X...X", "X....", "X.XXX", "X...X", "X...X", ".XXXX"],
+    H: ["X...X", "X...X", "X...X", "XXXXX", "X...X", "X...X", "X...X"],
+    I: ["XXXXX", "..X..", "..X..", "..X..", "..X..", "..X..", "XXXXX"],
+    J: ["..XXX", "...X.", "...X.", "...X.", "...X.", "X..X.", ".XX.."],
+    K: ["X...X", "X..X.", "X.X..", "XX...", "X.X..", "X..X.", "X...X"],
+    L: ["X....", "X....", "X....", "X....", "X....", "X....", "XXXXX"],
+    M: ["X...X", "XX.XX", "X.X.X", "X.X.X", "X...X", "X...X", "X...X"],
+    N: ["X...X", "XX..X", "X.X.X", "X..XX", "X...X", "X...X", "X...X"],
+    O: [".XXX.", "X...X", "X...X", "X...X", "X...X", "X...X", ".XXX."],
+    P: ["XXXX.", "X...X", "X...X", "XXXX.", "X....", "X....", "X...."],
+    Q: [".XXX.", "X...X", "X...X", "X...X", "X.X.X", "X..X.", ".XX.X"],
+    R: ["XXXX.", "X...X", "X...X", "XXXX.", "X.X..", "X..X.", "X...X"],
+    S: [".XXXX", "X....", "X....", ".XXX.", "....X", "....X", "XXXX."],
+    T: ["XXXXX", "..X..", "..X..", "..X..", "..X..", "..X..", "..X.."],
+    U: ["X...X", "X...X", "X...X", "X...X", "X...X", "X...X", ".XXX."],
+    V: ["X...X", "X...X", "X...X", "X...X", "X...X", ".X.X.", "..X.."],
+    W: ["X...X", "X...X", "X...X", "X.X.X", "X.X.X", "XX.XX", "X...X"],
+    X: ["X...X", "X...X", ".X.X.", "..X..", ".X.X.", "X...X", "X...X"],
+    Y: ["X...X", "X...X", ".X.X.", "..X..", "..X..", "..X..", "..X.."],
+    Z: ["XXXXX", "....X", "...X.", "..X..", ".X...", "X....", "XXXXX"],
+    "0": [".XXX.", "X...X", "X..XX", "X.X.X", "XX..X", "X...X", ".XXX."],
+    "1": ["..X..", ".XX..", "..X..", "..X..", "..X..", "..X..", ".XXX."],
+    "2": [".XXX.", "X...X", "....X", "...X.", "..X..", ".X...", "XXXXX"],
+    "3": ["XXXXX", "...X.", "..X..", "...X.", "....X", "X...X", ".XXX."],
+    "4": ["...X.", "..XX.", ".X.X.", "X..X.", "XXXXX", "...X.", "...X."],
+    "5": ["XXXXX", "X....", "XXXX.", "....X", "....X", "X...X", ".XXX."],
+    "6": ["..XX.", ".X...", "X....", "XXXX.", "X...X", "X...X", ".XXX."],
+    "7": ["XXXXX", "....X", "...X.", "..X..", ".X...", ".X...", ".X..."],
+    "8": [".XXX.", "X...X", "X...X", ".XXX.", "X...X", "X...X", ".XXX."],
+    "9": [".XXX.", "X...X", "X...X", ".XXXX", "....X", "...X.", ".XX.."],
+    ":": [".....", "..X..", "..X..", ".....", "..X..", "..X..", "....."],
+    "/": ["....X", "....X", "...X.", "..X..", ".X...", "X....", "X...."],
+    "-": [".....", ".....", ".....", "XXXXX", ".....", ".....", "....."],
+    ".": [".....", ".....", ".....", ".....", ".....", ".XX..", ".XX.."],
+    ",": [".....", ".....", ".....", ".....", "..XX.", "..X..", ".X..."],
+    "!": ["..X..", "..X..", "..X..", "..X..", "..X..", ".....", "..X.."],
+    "?": [".XXX.", "X...X", "....X", "...X.", "..X..", ".....", "..X.."],
+    "'": ["..X..", "..X..", ".X...", ".....", ".....", ".....", "....."],
+    "(": ["...X.", "..X..", ".X...", ".X...", ".X...", "..X..", "...X."],
+    ")": [".X...", "..X..", "...X.", "...X.", "...X.", "..X..", ".X..."],
+    "×": [".....", "X...X", ".X.X.", "..X..", ".X.X.", "X...X", "....."],
+    "·": [".....", ".....", ".....", "..X..", ".....", ".....", "....."],
+    "+": [".....", "..X..", "..X..", "XXXXX", "..X..", "..X..", "....."],
+    "€": ["..XXX", ".X...", "XXXX.", ".X...", "XXXX.", ".X...", "..XXX"],
+    "≡": [".....", "XXXXX", ".....", "XXXXX", ".....", "XXXXX", "....."],
+    "%": ["XX..X", "XX.X.", "...X.", "..X..", ".X...", "X.XX.", "X..XX"],
+    "<": ["...X.", "..X..", ".X...", "X....", ".X...", "..X..", "...X."],
+    ">": [".X...", "..X..", "...X.", "....X", "...X.", "..X..", ".X..."]
+  };
+  GLYPHES["—"] = GLYPHES["–"] = GLYPHES["-"];
+  var ACCENTS = {
+    "É": ["E", "..XX."], "È": ["E", ".XX.."], "Ê": ["E", "..X.."], "Ë": ["E", ".X.X."],
+    "À": ["A", ".XX.."], "Â": ["A", "..X.."], "Î": ["I", "..X.."], "Ï": ["I", ".X.X."],
+    "Ô": ["O", "..X.."], "Ù": ["U", ".XX.."], "Û": ["U", "..X.."], "Ü": ["U", ".X.X."]
+  };
+  var CEDILLE = ["..X..", ".XX.."];
+
+  function largeur(txt, u) {
+    var w = 0;
+    for (var i = 0; i < txt.length; i++) w += (txt[i] === " " ? 4 : 6) * u;
+    return w - u;
+  }
+
+  /**
+   * Ecrit `txt` en pixels de cote `u` (glyphe de 5u x 7u, chasse 6u).
+   * `y` est le haut des lettres ; les accents sortent au-dessus, la cedille
+   * en dessous. `align` : left (defaut) | center | right. Renvoie la largeur.
+   */
+  function texte(ctx, txt, x, y, u, couleur, align) {
+    txt = String(txt).toUpperCase();
+    var w = largeur(txt, u);
+    if (align === "center") x -= w / 2;
+    else if (align === "right") x -= w;
+    var pal = { X: couleur };
+    for (var i = 0; i < txt.length; i++) {
+      var ch = txt[i];
+      if (ch === " ") { x += 4 * u; continue; }
+      var g = GLYPHES[ch], acc = ACCENTS[ch];
+      if (acc) { g = GLYPHES[acc[0]]; grille(ctx, [acc[1]], x, y - 2 * u, 5 * u, pal); }
+      else if (ch === "Ç") { g = GLYPHES.C; grille(ctx, CEDILLE, x, y + 7 * u, 5 * u, pal); }
+      if (g) grille(ctx, g, x, y, 5 * u, pal);
+      else { ctx.fillStyle = couleur; ctx.fillRect(x, y + 5 * u, 5 * u, 2 * u); }
+      x += 6 * u;
+    }
+    return w;
+  }
+
+  /** Comme `texte`, mais `u` est reduit s'il le faut pour tenir dans `max`. */
+  function texteAjuste(ctx, txt, x, y, max, uMax, couleur, align) {
+    var u = Math.min(uMax, max / largeur(String(txt), 1));
+    return texte(ctx, txt, x, y, u, couleur, align);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Plateau : damier, cadre, lueur                                      */
+  /* ------------------------------------------------------------------ */
+
+  /** Damier a deux tons : donne de la matiere au fond sans lignes. */
+  function damier(ctx, x, y, w, h, taille, c1, c2) {
+    ctx.fillStyle = c1;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = c2;
+    var cols = Math.ceil(w / taille), rows = Math.ceil(h / taille);
+    for (var r = 0; r < rows; r++) {
+      for (var c = (r % 2); c < cols; c += 2) {
+        var cw = Math.min(taille, x + w - (x + c * taille));
+        var ch = Math.min(taille, y + h - (y + r * taille));
+        ctx.fillRect(x + c * taille, y + r * taille, cw, ch);
+      }
+    }
+  }
+
+  /** Cadre enfonce autour de l'aire de jeu : sombre en haut/gauche, clair
+   *  en bas/droite, avec un filet interieur. */
+  function cadre(ctx, x, y, w, h, u) {
+    ctx.fillStyle = "rgba(0,0,0,.45)";
+    ctx.fillRect(x, y, w, u);
+    ctx.fillRect(x, y, u, h);
+    ctx.fillStyle = "rgba(255,255,255,.18)";
+    ctx.fillRect(x, y + h - u, w, u);
+    ctx.fillRect(x + w - u, y, u, h);
+    ctx.fillStyle = "rgba(255,255,255,.06)";
+    ctx.fillRect(x + u, y + u, w - 2 * u, 1);
+    ctx.fillRect(x + u, y + u, 1, h - 2 * u);
+  }
+
+  function rgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return (n >> 16) + "," + ((n >> 8) & 255) + "," + (n & 255);
+  }
+
+  /** Lueur radiale : le seul endroit ou le rendu n'est pas en pixels.
+   *  `alpha` au centre, transparent a `r`. */
+  function lueur(ctx, cx, cy, r, hex, alpha) {
+    var c = rgb(hex);
+    var g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+    g.addColorStop(0, "rgba(" + c + "," + (alpha == null ? .35 : alpha) + ")");
+    g.addColorStop(1, "rgba(" + c + ",0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
+  }
+
   var pix = {
     MONO: MONO, SANS: SANS,
     grille: grille, biseau: biseau, picto: picto,
-    tete: tete, agent: agent, balle: balle
+    tete: tete, agent: agent, balle: balle,
+    texte: texte, texteAjuste: texteAjuste, largeur: largeur,
+    damier: damier, cadre: cadre, lueur: lueur
   };
 
   global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, pix: pix };
