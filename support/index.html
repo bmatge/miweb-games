@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Le support N1</title>
+<title>Le support N1 du site</title>
 <link rel="stylesheet" href="../assets/arcade.css?v=5">
 <style>
   /* Le curseur systeme disparait sur le plateau : le tampon dessine au
@@ -15,7 +15,7 @@
 <div class="wrap jeu">
   <header class="tete">
     <a class="retour" href="../">&larr; Jeux</a>
-    <h1>Support N1 <span class="sous">/ douze guichets, une journée</span></h1>
+    <h1>Support N1 <span class="sous">/ le site sous Drupal, une journée</span></h1>
     <div class="hud">
       <div class="stat"><b id="hud-fermes">0</b><span>tickets fermés</span></div>
       <div class="stat"><b id="hud-n2">0 / 8</b><span>remontés en N2</span></div>
@@ -32,21 +32,21 @@
       <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu du support N1"></canvas>
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à prendre la ligne ?</h2>
-        <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer.</p>
+        <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. « Page d'accueil HS » vaut triple. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer.</p>
         <button class="btn" id="ecran-btn">Ouvrir le guichet</button>
       </div>
     </div>
   </div>
 
   <aside class="lateral">
-  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Casque sur les oreilles. La file d'attente est déjà pleine.</em></div>
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Casque sur les oreilles. Le site est en ligne, donc la file est pleine.</em></div>
 
   <section class="notice">
-    <p class="chapo">Douze guichets, les tickets sortent la tête : « mot de passe oublié », « ça marche pas », « urgent DG », « je vous avais dit ». Vous tapez avant qu'ils ne remontent en N2. <strong>Certains ne se tapent pas</strong> : une demande du cabinet, on l'escalade.</p>
+    <p class="chapo">Vous tenez le support de premier niveau d'un site sous Drupal. Douze guichets, les tickets sortent la tête : « bug CSS », « nouvelle demande », « nouveau contributeur », « je me rappelle plus », « accès Totem », « le BO ne répond plus ». Vous tapez avant qu'ils ne remontent en N2. <strong>Certains ne se tapent pas</strong> : une demande du cabinet, on l'escalade.</p>
 
     <div class="legende">
       <div><i style="background:#ffffff"></i>Ticket ordinaire</div>
-      <div><i style="background:#FFCA00"></i>Urgent DG — vaut triple</div>
+      <div><i style="background:#FFCA00"></i>Page d'accueil HS — vaut triple</div>
       <div><i style="background:#E1000F"></i>Demande du cabinet — ne pas taper</div>
     </div>
 
@@ -82,30 +82,37 @@ const btnSon = document.getElementById("btn-son");
 
 /* ---------- les tickets ---------- */
 const TICKETS = [
-  "MOT DE PASSE OUBLIÉ", "ÇA MARCHE PAS", "JE VOUS AVAIS DIT", "C'EST LENT",
-  "L'IMPRIMANTE", "PAS REÇU LE MAIL", "ÉCRAN BLEU", "ACCÈS VPN",
-  "C'EST QUOI LE LOGIN", "TOUJOURS PAS RÉGLÉ", "PIÈCE JOINTE ?", "LE WIFI",
-  "ÇA A DISPARU", "MON ÉCRAN EST NOIR", "URGENT (PAS URGENT)"
+  "BUG CSS", "NOUVELLE DEMANDE", "NOUVEAU CONTRIBUTEUR", "JE ME RAPPELLE PLUS",
+  "ACCÈS TOTEM", "LE BO NE RÉPOND PLUS", "CACHE À VIDER", "LE MENU A DISPARU",
+  "IMAGE DE 12 MO", "PAGE EN 403", "PDF DE 40 MO", "ACCENT DANS L'URL",
+  "MODULE À ACTIVER", "C'EST QUOI UN NOEUD", "BLOC EN VRAC", "LE FORMULAIRE PART PAS",
+  "JE VOIS PAS MES MODIFS", "ONGLET MODIFIER ABSENT", "MISE À JOUR SÉCU"
 ];
 const QUIPS_FERME = [
-  "« Avez-vous essayé de redémarrer ? » Ticket clos.",
-  "Mot de passe réinitialisé. Le même qu'avant, avec un 2.",
-  "Réponse : c'est normal. Ticket clos.",
-  "L'imprimante était éteinte. Ticket clos, dignité intacte.",
-  "Le câble était débranché. On ne le dira à personne.",
-  "Le wifi marche. C'était le mode avion.",
-  "La pièce jointe était dans le mail précédent. Ticket clos.",
-  "Résolu en 40 secondes. La personne rappelle dans 41."
+  "Cache vidé. Miracle instantané, jusqu'à demain.",
+  "Bug CSS : une div fermée trois fois. Une de trop, deux de moins.",
+  "Nouveau contributeur créé, rôle « rédacteur ». Pas admin. Jamais admin.",
+  "« Je me rappelle plus » : lien de réinitialisation envoyé. Encore.",
+  "Accès Totem : le mot de passe était en majuscules. Ticket clos.",
+  "Le BO répondait très bien. C'était le VPN.",
+  "Le menu n'avait pas disparu, il était dépublié. Republié.",
+  "Image de 12 Mo redimensionnée en 80 ko. Ça charge, maintenant.",
+  "Page en 403 : il fallait être connecté. Connecté.",
+  "« Je vois pas mes modifs » : onglet Modifier, bouton Enregistrer. Le second surtout.",
+  "Le bloc était dans la mauvaise région. Glissé, déposé, clos.",
+  "Un nœud, c'est une page. À peu près. Ticket clos.",
+  "Le formulaire partait, mais en spam. Adresse ajoutée à la liste blanche.",
+  "Accent dans l'URL remplacé par un tiret. Le lien marche. Le vieux aussi."
 ];
 const QUIPS_DG = [
-  "Urgent DG traité en quatre secondes. Record du service.",
-  "La DG voulait le fond d'écran d'avant. Fait.",
-  "Urgent DG : le son du visio. C'était le bouton « muet »."
+  "Accueil rétabli en quatre secondes. C'était le cache. C'est toujours le cache.",
+  "Accueil HS : quelqu'un avait dépublié le nœud 1. Republié.",
+  "Page d'accueil revenue. Le bloc « actualités » n'a pas survécu, personne ne le pleure."
 ];
 const QUIPS_N2 = [
-  "Ticket remonté en N2. Ils vont le redescendre avec une question.",
-  "Perdu en N2. Il reviendra dans trois semaines, sans réponse.",
-  "Escaladé faute de temps. Le N2 soupire, on l'entend d'ici."
+  "Remonté en N2. C'est un module contrib, ils vont dire que c'est le thème.",
+  "Perdu en N2. Ça sent la mise à jour de sécurité un vendredi.",
+  "Escaladé faute de temps. Le N2 ouvre un ticket chez l'hébergeur, qui en ouvre un chez nous."
 ];
 
 /* ---------- etat ---------- */
@@ -118,7 +125,7 @@ let fermes = 0, n2 = 0, points = 0, son = true, record = 0;
 let curseur = {x: W / 2, y: H / 2, visible: false};
 let clavier = {i: 5, actif: false};
 let flashs = [], secousse = 0, tampon = 0, bulles = [];
-let dernierMot = "Casque sur les oreilles. La file d'attente est déjà pleine.";
+let dernierMot = "Casque sur les oreilles. Le site est en ligne, donc la file est pleine.";
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
 
@@ -184,7 +191,7 @@ function nouvellePartie(){
   fermes = 0; n2 = 0; points = 0;
   flashs = []; bulles = []; secousse = 0;
   majHud();
-  log("Casque sur les oreilles. La file d'attente est déjà pleine.");
+  log("Casque sur les oreilles. Le site est en ligne, donc la file est pleine.");
 }
 
 /** Cadence et duree d'affichage selon l'heure : le matin est calme, l'apres-
@@ -201,7 +208,7 @@ function apparaitre(){
   const r = Math.random();
   let type = "normal", label;
   if(r < .12){ type = "cabinet"; label = "DEMANDE DU CABINET"; }
-  else if(r < .26){ type = "dg"; label = "URGENT DG"; }
+  else if(r < .26){ type = "dg"; label = "PAGE D'ACCUEIL HS"; }
   else label = TICKETS[Math.floor(Math.random() * TICKETS.length)];
   const {duree} = rythme();
   g.ticket = {label, type, t: 0, duree: duree * (type === "dg" ? .7 : 1), etat: "monte", h: 0};
@@ -388,8 +395,8 @@ function finir(raison){
     log(raison);
   } else {
     bip(700, .1, "triangle"); setTimeout(() => bip(940, .14, "triangle"), 100);
-    montrer("18 h, fin de journée", bilan + " Demain, les mêmes tickets, avec les mêmes personnes.", "Refaire une journée");
-    log("18 h. Le casque tombe. La file n'est pas vide, elle ne l'est jamais.");
+    montrer("18 h, fin de journée", bilan + " Demain, les mêmes tickets, avec les mêmes contributeurs.", "Refaire une journée");
+    log("18 h. Le casque tombe. Le cache se remplit, la file aussi.");
   }
 }
 

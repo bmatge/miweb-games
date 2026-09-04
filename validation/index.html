@@ -23,9 +23,9 @@
     </div>
   </header>
 
-  <div class="scene" id="scene" style="--ratio:1.6327">
+  <div class="scene" id="scene" style="--ratio:1.7143">
     <div class="board" id="board">
-      <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu de la chaîne de validation"></canvas>
+      <canvas id="jeu" width="960" height="560" aria-label="Aire de jeu de la chaîne de validation"></canvas>
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à faire circuler ?</h2>
         <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison : un pas par geste. Traversez chaque instance entre deux obstacles. Se faire percuter renvoie le dossier au cadrage, jamais à la corbeille.</p>
@@ -35,18 +35,22 @@
   </div>
 
   <aside class="lateral">
-  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Dossier prêt. Il ne manque que six avis.</em></div>
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Dossier prêt. Il ne manque que dix avis.</em></div>
 
   <section class="notice">
-    <p class="chapo">Vous poussez un dossier du cadrage à la mise en ligne. Chaque voie est une instance à traverser au bon moment : juridique, achats, DPO, sécurité, com', RSSI. Les obstacles circulent, et un <strong>chronomètre de fin de gestion</strong> tourne. Se faire percuter, c'est retour à la case départ. Comme dans la vraie vie.</p>
+    <p class="chapo">Vous poussez un dossier du cadrage à la mise en ligne. Chaque voie est une instance à traverser au bon moment : juridique, achats, contrôle de gestion, DPO, accessibilité, architecture, sécurité, com', RSSI, cabinet. Les obstacles circulent, et un <strong>chronomètre de fin de gestion</strong> tourne. Se faire percuter, c'est retour à la case départ. Comme dans la vraie vie.</p>
 
     <div class="legende">
       <div><i style="background:#6a2ea0"></i>Juridique</div>
       <div><i style="background:#18753C"></i>Achats</div>
+      <div><i style="background:#9a9a9a"></i>Contrôle de gestion</div>
       <div><i style="background:#0078a8"></i>DPO</div>
+      <div><i style="background:#e8730a"></i>Accessibilité</div>
+      <div><i style="background:#1f9e89"></i>Architecture</div>
       <div><i style="background:#E1000F"></i>Sécurité</div>
       <div><i style="background:#FFCA00"></i>Com'</div>
       <div><i style="background:#ffffff"></i>RSSI</div>
+      <div><i style="background:#c2185b"></i>Cabinet</div>
     </div>
 
     <p class="aide">Chaque dossier mis en ligne rend <strong>15 secondes</strong> au chronomètre et accélère les instances. Le parapheur, à mi-chemin, est un abri. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
@@ -60,10 +64,10 @@
 "use strict";
 
 /* ---------- plateau ---------- */
-// Neuf rangees de 50 px sous un bandeau de 40 : depart en bas, trois
-// instances, un parapheur (abri), trois instances, mise en ligne en haut.
-const W = 800, H = 490, BANDEAU = 40, CELL = 50, COLS = 16, ROWS = 9;
-const R_LIGNE = 0, R_PARAPHEUR = 4, R_DEPART = 8;
+// Treize rangees de 40 px sous un bandeau de 40 : depart en bas, cinq
+// instances, un parapheur (abri), cinq instances, mise en ligne en haut.
+const W = 960, H = 560, BANDEAU = 40, CELL = 40, COLS = 24, ROWS = 13;
+const R_LIGNE = 0, R_PARAPHEUR = 6, R_DEPART = 12;
 
 const cv = document.getElementById("jeu");
 const ctx = cv.getContext("2d");
@@ -85,22 +89,34 @@ const btnSon = document.getElementById("btn-son");
 // Une voie par rangee. `dir` est le sens de circulation, `vitesse` en px/s
 // au niveau 1. Les obstacles sont ce que l'instance renvoie.
 const VOIES = {
-  1: {nom:"RSSI",      fond:"#ffffff", texte:"#000091", dir:-1, vitesse:118,
+  1: {nom:"CABINET",   fond:"#c2185b", texte:"#ffffff", dir:-1, vitesse:150,
+      obstacles:["ARBITRAGE","PRIORITÉ MINISTRE","ÉLÉMENTS À REMONTER"],
+      quip:"Le cabinet a une autre priorité cette semaine. Et la semaine prochaine."},
+  2: {nom:"RSSI",      fond:"#ffffff", texte:"#000091", dir:1,  vitesse:118,
       obstacles:["CONGÉS DU VALIDEUR","HOMOLOGATION","AVIS RÉSERVÉ"],
       quip:"Le RSSI est en congés. Son adjoint n'a pas la délégation."},
-  2: {nom:"COM'",      fond:"#FFCA00", texte:"#161616", dir:1,  vitesse:92,
+  3: {nom:"COM'",      fond:"#FFCA00", texte:"#161616", dir:-1, vitesse:92,
       obstacles:["VISUEL À REFAIRE","ÉLÉMENTS DE LANGAGE","VALIDATION CAB"],
       quip:"La com' veut refaire le visuel. Le bleu n'est pas le bon bleu."},
-  3: {nom:"SÉCURITÉ",  fond:"#E1000F", texte:"#ffffff", dir:-1, vitesse:140,
+  4: {nom:"SÉCURITÉ",  fond:"#E1000F", texte:"#ffffff", dir:1,  vitesse:140,
       obstacles:["SCAN EN COURS","PORT OUVERT","PSSI"],
       quip:"La sécu bloque : un port ouvert sur un serveur décommissionné."},
-  5: {nom:"DPO",       fond:"#0078a8", texte:"#ffffff", dir:1,  vitesse:105,
+  5: {nom:"ARCHI",     fond:"#1f9e89", texte:"#ffffff", dir:-1, vitesse:100,
+      obstacles:["PAS DANS LE SDSI","SCHÉMA À REFAIRE","CATALOGUE"],
+      quip:"L'architecture demande un schéma. Celui de 2019 ne compte plus."},
+  7: {nom:"ACCESSIBILITÉ", fond:"#e8730a", texte:"#161616", dir:1, vitesse:112,
+      obstacles:["CONTRASTE 3:1","ALT MANQUANT","AUDIT RGAA"],
+      quip:"Le référent accessibilité a trouvé un contraste à 3:1. Sur le logo."},
+  8: {nom:"DPO",       fond:"#0078a8", texte:"#ffffff", dir:-1, vitesse:105,
       obstacles:["PIÈCE COMPLÉMENTAIRE","AIPD","REGISTRE"],
       quip:"Le DPO demande une pièce complémentaire. La même que la dernière fois."},
-  6: {nom:"ACHATS",    fond:"#18753C", texte:"#ffffff", dir:-1, vitesse:80,
+  9: {nom:"CONTRÔLE DE GESTION", fond:"#9a9a9a", texte:"#161616", dir:1, vitesse:86,
+      obstacles:["CRÉDITS GELÉS","PIÈCE JUSTIFICATIVE","ENGAGEMENT TARDIF"],
+      quip:"Le contrôle de gestion gèle les crédits. Provisoirement. Jusqu'en décembre."},
+  10: {nom:"ACHATS",   fond:"#18753C", texte:"#ffffff", dir:-1, vitesse:80,
       obstacles:["TROIS DEVIS","MARCHÉ ÉCHU","BON DE COMMANDE"],
       quip:"Les achats veulent trois devis. Pour une licence à 40 €."},
-  7: {nom:"JURIDIQUE", fond:"#6a2ea0", texte:"#ffffff", dir:1,  vitesse:125,
+  11: {nom:"JURIDIQUE", fond:"#6a2ea0", texte:"#ffffff", dir:1, vitesse:125,
       obstacles:["AVIS DÉFAVORABLE","CLAUSE MANQUANTE","RELECTURE"],
       quip:"Le juridique renvoie le dossier : une clause manque en page 12."}
 };
@@ -118,12 +134,12 @@ const CLE_RECORD = "miweb-games:validation:record";
 const CHRONO_DEPART = 90, BONUS_LIGNE = 15;
 
 let etat = "menu";           // menu | jeu | pause | fin
-let joueur = {col: 7, row: R_DEPART};
+let joueur = {col: 11, row: R_DEPART};
 let voies = [];              // {row, obstacles:[{x, w, label}]}
 let enLigne = 0, retours = 0, chrono = CHRONO_DEPART, allure = 1;
 let son = true, record = 0;
 let saut = 0, flashs = [], secousse = 0, invulnerable = 0;
-let dernierMot = "Dossier prêt. Il ne manque que six avis.";
+let dernierMot = "Dossier prêt. Il ne manque que dix avis.";
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
 
@@ -187,7 +203,7 @@ function construireVoies(){
     const obstacles = [];
     // Trois obstacles par voie, repartis sur une periode plus longue que
     // l'ecran : il y a toujours une fenetre pour passer.
-    const periode = W + 260;
+    const periode = W + 300;
     for(let i = 0; i < 3; i++){
       const label = v.obstacles[i % v.obstacles.length];
       const w = Math.max(80, pix.largeur(label, 1.25) + 22);
@@ -198,12 +214,12 @@ function construireVoies(){
 }
 
 function nouvellePartie(){
-  joueur = {col: 7, row: R_DEPART};
+  joueur = {col: 11, row: R_DEPART};
   enLigne = 0; retours = 0; chrono = CHRONO_DEPART; allure = 1;
   saut = 0; flashs = []; secousse = 0; invulnerable = 0;
   construireVoies();
   majHud();
-  log("Dossier prêt. Il ne manque que six avis.");
+  log("Dossier prêt. Il ne manque que dix avis.");
 }
 
 /* ---------- interactions ---------- */
@@ -322,7 +338,7 @@ function maj(dt){
       if(def.dir < 0 && o.x + o.w < -130) o.x += o.periode;
     }
     if(v.row === joueur.row && invulnerable <= 0){
-      const px = joueur.col * CELL + 9, pw = CELL - 18;
+      const px = joueur.col * CELL + 7, pw = CELL - 14;
       for(const o of v.obstacles){
         if(px < o.x + o.w && px + pw > o.x) return percuter(def, o);
       }
@@ -336,7 +352,7 @@ function percuter(def, o){
   flashs.push({col: joueur.col, row: joueur.row, t: .25, couleur: def.fond});
   bip(150, .18, "sawtooth");
   log("Percuté par « " + o.label.charAt(0) + o.label.slice(1).toLowerCase() + " ». " + def.quip);
-  joueur = {col: 7, row: R_DEPART};
+  joueur = {col: 11, row: R_DEPART};
   invulnerable = .6;
   majHud();
 }
@@ -352,7 +368,7 @@ function livrer(){
     record = enLigne;
     try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
   }
-  joueur = {col: 7, row: R_DEPART};
+  joueur = {col: 11, row: R_DEPART};
   invulnerable = .4;
   majHud();
 }
@@ -387,7 +403,7 @@ function bande(row, fond, label){
   const y = BANDEAU + row * CELL;
   pix.biseau(ctx, 0, y, W, CELL, 3, fond, true);
   // A droite : le dossier part du centre, il masquait l'etiquette.
-  pix.texte(ctx, label, W - 20, y + 18, 2, "rgba(255,255,255,.55)", "right");
+  pix.texte(ctx, label, W - 20, y + 14, 1.5, "rgba(255,255,255,.55)", "right");
 }
 
 function dessiner(){
@@ -405,7 +421,7 @@ function dessiner(){
     const y = BANDEAU + r * CELL;
     ctx.fillStyle = "rgba(0,0,0,.22)";
     ctx.fillRect(0, y + 4, W, CELL - 8);
-    pix.texte(ctx, VOIES[r].nom, 10, y + 20, 1.5, "rgba(255,255,255,.22)");
+    pix.texte(ctx, VOIES[r].nom, 10, y + 16, 1.25, "rgba(255,255,255,.22)");
   }
   bande(R_LIGNE, "#18753C", "MISE EN LIGNE");
   bande(R_PARAPHEUR, "#3a3a8a", "PARAPHEUR");
@@ -426,11 +442,11 @@ function dessiner(){
   // obstacles
   for(const v of voies){
     const def = VOIES[v.row];
-    const y = BANDEAU + v.row * CELL + 8;
+    const y = BANDEAU + v.row * CELL + 7;
     for(const o of v.obstacles){
       if(o.x > W + 10 || o.x + o.w < -10) continue;
-      pix.biseau(ctx, o.x, y, o.w, CELL - 16, 3, def.fond);
-      pix.texteAjuste(ctx, o.label, o.x + o.w / 2, y + (CELL - 16) / 2 - 4, o.w - 12, 1.25, def.texte, "center");
+      pix.biseau(ctx, o.x, y, o.w, CELL - 14, 3, def.fond);
+      pix.texteAjuste(ctx, o.label, o.x + o.w / 2, y + (CELL - 14) / 2 - 4, o.w - 12, 1.25, def.texte, "center");
     }
   }
 
@@ -449,7 +465,7 @@ function dessiner(){
   const visible = invulnerable <= 0 || Math.floor(performance.now() / 80) % 2 === 0;
   if(visible){
     pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.2, "#FFCA00", .3);
-    pix.grille(ctx, DOSSIER, px + 5, py + 5 - bond, CELL - 10, PAL_DOSSIER);
+    pix.grille(ctx, DOSSIER, px + 4, py + 4 - bond, CELL - 8, PAL_DOSSIER);
   }
   ctx.restore();
 }
