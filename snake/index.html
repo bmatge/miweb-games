@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake — Constituez votre équipe web</title>
-<link rel="stylesheet" href="../assets/arcade.css">
+<link rel="stylesheet" href="../assets/arcade.css?v=3">
 <style>
   .equipe{margin-top:12px;background:#fff;border:1px solid var(--gris);padding:10px 12px}
   .equipe h2{font-size:13px;margin:0 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#555}
@@ -63,7 +63,7 @@
   <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
 </div>
 
-<script src="../assets/arcade.js"></script>
+<script src="../assets/arcade.js?v=3"></script>
 <script>
 (() => {
 "use strict";
@@ -176,7 +176,8 @@ function resize(){
   const dpr = window.devicePixelRatio || 1;
   let cssW, cssH;
   if(enPlein){
-    const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(window.innerWidth / W, dispoH / H);
     cssW = Math.floor(W * s); cssH = Math.floor(H * s);
     cv.style.width = cssW + "px";
   } else {
@@ -499,8 +500,12 @@ function dessiner(){
     const s = serpent[i];
     const px = s.x * CELL, py = BANDEAU + s.y * CELL;
     if(i === 0){
+      // Contour sombre : la famille « produit » est jaune elle aussi, la tete
+      // et un profil a recruter etaient sinon impossibles a distinguer.
       ctx.fillStyle = "#FFCA00";
       ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+      ctx.strokeStyle = "#161616"; ctx.lineWidth = 2;
+      ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
       ctx.fillStyle = "#161616";
       const ox = dir.x * 3, oy = dir.y * 3;
       ctx.beginPath(); ctx.arc(px + CELL/2 - 4 + ox, py + CELL/2 - 2 + oy, 2.2, 0, Math.PI*2); ctx.fill();

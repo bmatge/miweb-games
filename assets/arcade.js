@@ -55,6 +55,10 @@
     function poser(on) {
       el.classList.toggle("plein", on);
       document.body.classList.toggle("plein-actif", on);
+      // La barre est en position absolue : sans reservation, elle recouvrirait
+      // le haut du plateau en paysage, quand le canvas occupe toute la hauteur.
+      // On mesure apres la pose de la classe (display:none donne 0).
+      el.style.paddingTop = on ? barre.offsetHeight + "px" : "";
       majBouton();
       if (onChange) onChange(on);
     }
@@ -108,7 +112,9 @@
       basculer: basculer,
       actif: actif,
       stat: function (t) { bStat.textContent = t; },
-      message: function (t) { bMsg.textContent = t; }
+      message: function (t) { bMsg.textContent = t; },
+      /** Hauteur occupee par la barre, a retrancher de la place disponible. */
+      hauteur: function () { return actif() ? barre.offsetHeight : 0; }
     };
   }
 

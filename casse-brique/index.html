@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casse-brique du chef de projet</title>
-<link rel="stylesheet" href="../assets/arcade.css">
+<link rel="stylesheet" href="../assets/arcade.css?v=3">
 </head>
 <body>
 <div class="wrap">
@@ -44,7 +44,7 @@
   <p class="aide">Bonus qui tombent : <code>€</code> rallonge budgétaire, <code>+</code> renfort d'équipe, <code>≡</code> lotissement (trois balles), <code>!</code> réunion imprévue (malus). <code>P</code> met en pause.</p>
 </div>
 
-<script src="../assets/arcade.js"></script>
+<script src="../assets/arcade.js?v=3"></script>
 <script>
 (() => {
 "use strict";
@@ -71,7 +71,8 @@ function resize(){
   if(enPlein){
     // Tenir dans les deux dimensions, pas seulement en largeur : en paysage
     // sur mobile c'est la hauteur qui contraint.
-    const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(window.innerWidth / W, dispoH / H);
     cssW = Math.floor(W * s); cssH = Math.floor(H * s);
     cv.style.width = cssW + "px";
   } else {
