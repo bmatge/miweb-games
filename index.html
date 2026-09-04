@@ -46,6 +46,30 @@
     margin-top:10px;display:inline-block;font-size:13px;font-weight:700;color:var(--bleu);
   }
   .card:hover .jouer{text-decoration:underline}
+  .scores-section{margin-top:32px;border-top:1px solid var(--gris);padding-top:18px}
+  .scores-section h2{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}
+  .scores-section .note{margin:0 0 14px;font-size:13px;color:#555}
+  .pseudo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;font-size:13.5px}
+  .pseudo input{
+    font:inherit;font-size:14px;padding:6px 10px;border:1px solid #929292;background:#fff;
+    width:16ch;
+  }
+  .pseudo input:focus{outline:2px solid var(--bleu);outline-offset:1px}
+  .pseudo button{
+    font:inherit;font-size:13px;font-weight:700;padding:7px 12px;border:0;
+    background:var(--bleu);color:#fff;cursor:pointer;
+  }
+  .pseudo .ok{font-size:12.5px;color:#18753C}
+  .tableaux{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(272px,1fr))}
+  .tableaux .bloc{background:#fff;border:1px solid var(--gris);padding:10px 12px 12px}
+  .tableaux h3{font-size:14px;margin:0 0 2px}
+  .tableaux .unite{font-size:11.5px;color:#666;margin:0 0 8px}
+  .tableaux table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
+  .tableaux td{padding:3px 4px;border-top:1px solid #eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14ch}
+  .tableaux td:first-child{color:#888;width:2ch}
+  .tableaux td.score{text-align:right;font-weight:700;color:var(--bleu)}
+  .tableaux td:last-child{color:#777;font-size:11.5px;text-align:right;white-space:normal}
+  .tableaux .vide{font-size:12.5px;color:#777;font-style:italic;margin:0}
   .pied{margin-top:28px;font-size:12.5px;color:#666;border-top:1px solid var(--gris);padding-top:12px}
   .pied a{color:var(--bleu)}
 </style>
@@ -91,7 +115,7 @@
         <h2>La chaîne de validation</h2>
         <p>Vous poussez un dossier du cadrage à la mise en ligne. Six instances à traverser au bon moment, des obstacles qui circulent, et la fin de gestion qui approche. Percuté ? Retour au départ, pas à la corbeille.</p>
         <div class="tags">
-          <span class="tag">6 instances</span>
+          <span class="tag">10 instances</span>
           <span class="tag">Chronomètre</span>
           <span class="tag">Clavier · doigt · inclinaison</span>
         </div>
@@ -114,6 +138,18 @@
     </a>
 
   </div>
+
+  <section class="scores-section" aria-labelledby="scores-titre">
+    <h2 id="scores-titre">Tableau des scores</h2>
+    <p class="note">Les scores restent dans ce navigateur : rien n'est envoyé, rien n'est partagé. Le pseudo est proposé à chaque fin de partie, vous pouvez le changer ici.</p>
+    <form class="pseudo" id="form-pseudo">
+      <label for="pseudo">Votre pseudo</label>
+      <input id="pseudo" maxlength="14" autocomplete="nickname" placeholder="Anonyme">
+      <button type="submit">Enregistrer</button>
+      <span class="ok" id="pseudo-ok" hidden>Enregistré.</span>
+    </form>
+    <div class="tableaux" id="tableaux"></div>
+  </section>
 
   <p class="pied">
     Pages statiques, sans dépendance ni pistage. Code sur
@@ -189,6 +225,43 @@
     P.texteAjuste(c, label, x + 48, y + 9, 72, 1, chemise === "#E1000F" ? "#ffffff" : "#161616", "center");
   };
   tk(1, "#ffffff", "BUG CSS"); tk(3, "#FFCA00", "ACCUEIL HS"); tk(5, "#E1000F", "CABINET");
+
+  // Tableau des scores et pseudo, lus dans le localStorage de ce navigateur.
+  const inp = document.getElementById("pseudo"), ok = document.getElementById("pseudo-ok");
+  inp.value = Arcade.scores.pseudo();
+  document.getElementById("form-pseudo").addEventListener("submit", e => {
+    e.preventDefault();
+    inp.value = Arcade.scores.pseudo(inp.value);
+    ok.hidden = false;
+    setTimeout(() => { ok.hidden = true; }, 2000);
+  });
+  const conteneur = document.getElementById("tableaux");
+  Arcade.scores.JEUX.forEach(j => {
+    const l = Arcade.scores(j.cle).lire().slice(0, 5);
+    const bloc = document.createElement("div");
+    bloc.className = "bloc";
+    const h = document.createElement("h3"); h.textContent = j.nom;
+    const u = document.createElement("p"); u.className = "unite"; u.textContent = j.unite;
+    bloc.appendChild(h); bloc.appendChild(u);
+    if(!l.length){
+      const v = document.createElement("p"); v.className = "vide";
+      v.textContent = "Aucune partie enregistrée.";
+      bloc.appendChild(v);
+    } else {
+      const t = document.createElement("table");
+      l.forEach((e, i) => {
+        const tr = document.createElement("tr");
+        [String(i + 1), e.nom, String(e.score), e.detail].forEach((v, k) => {
+          const td = document.createElement("td"); td.textContent = v;
+          if(k === 2) td.className = "score";
+          tr.appendChild(td);
+        });
+        t.appendChild(tr);
+      });
+      bloc.appendChild(t);
+    }
+    conteneur.appendChild(bloc);
+  });
 })();
 </script>
 </body>

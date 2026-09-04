@@ -29,6 +29,7 @@
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt pour le lancement ?</h2>
         <p id="ecran-texte">Déplacez le chef de projet à la souris, au doigt ou avec les flèches. Espace ou clic pour lancer la balle.</p>
+        <div class="scores-zone" id="scores"></div>
         <button class="btn" id="ecran-btn">Lancer le projet</button>
       </div>
     </div>
@@ -68,6 +69,8 @@ const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
 const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("casse-brique");
 const hudCopil = document.getElementById("hud-copil");
 const hudCharge = document.getElementById("hud-charge");
 const hudLot = document.getElementById("hud-lot");
@@ -201,8 +204,9 @@ const NIVEAUX = [
 /* ---------- état ---------- */
 const COLS = 8, BW = 92, BH = 28, GAPX = 8, GAPY = 7, X0 = 8, Y0 = 66;
 
-let etat = "menu";          // menu | jeu | pause | lot | fin | victoire
+let etat = "menu";          // menu | jeu | pause | lot | fin
 let niveau = 0, copil = 3, charge = 0;
+const cycle = () => Math.floor(niveau / NIVEAUX.length) + 1;   // le marche se renouvelle, plus vite
 let briques = [], balles = [], bonus = [], eclats = [], bulles = [];
 let collee = true, son = true;
 let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
@@ -233,7 +237,7 @@ btnSon.addEventListener("click", () => {
 /* ---------- construction ---------- */
 function chargerNiveau(n){
   briques = []; bonus = []; eclats = []; bulles = [];
-  const lignes = NIVEAUX[n].lignes;
+  const lignes = NIVEAUX[n % NIVEAUX.length].lignes;
   lignes.forEach((ligne, r) => {
     ligne.forEach((label, c) => {
       if(!label) return;
@@ -248,7 +252,7 @@ function chargerNiveau(n){
     });
   });
   resetBalle();
-  hudLot.textContent = (n + 1) + " / " + NIVEAUX.length;
+  hudLot.textContent = (n % NIVEAUX.length + 1) + " / " + NIVEAUX.length + (cycle() > 1 ? " ×" + cycle() : "");
 }
 
 function resetBalle(){
@@ -257,7 +261,8 @@ function resetBalle(){
   barre.w = 110;
   barre.x = W/2 - barre.w/2;
   barre.cible = W/2;
-  const v = 330 + niveau * 26;
+  // Un cran par lot, puis 12 % par cycle : le marche renouvele va plus vite.
+  const v = (330 + (niveau % NIVEAUX.length) * 26) * Math.pow(1.12, cycle() - 1);
   balles = [{x: W/2, y: barre.y - 9, r: 7, vx: v * 0.55, vy: -v * 0.83, v}];
 }
 
@@ -282,6 +287,7 @@ cv.addEventListener("mousedown", lancer);
 
 const touches = {};
 window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
   touches[e.key] = true;
   if(e.key === " "){ e.preventDefault(); lancer(); }
   if(e.key === "p" || e.key === "P") basculerPause();
@@ -297,6 +303,7 @@ function basculerPause(){
 }
 
 function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
   titreEl.textContent = titre;
   texteEl.textContent = texte;
   btnEl.textContent = bouton;
@@ -305,7 +312,7 @@ function montrer(titre, texte, bouton){
 function cacher(){ ecran.hidden = true; }
 
 btnEl.addEventListener("click", () => {
-  if(etat === "menu" || etat === "fin" || etat === "victoire"){
+  if(etat === "menu" || etat === "fin"){
     niveau = 0; copil = 3; charge = 0;
     majHud(); chargerNiveau(0);
     log("Lot 1 lancé. Périmètre validé, ça peut commencer.");
@@ -521,6 +528,7 @@ function perdreCopil(){
     montrer("Projet arrêté",
       "Le dernier COPIL a tranché : arrêt du chantier. Charge capitalisée : " + charge + " jours-homme.",
       "Relancer un nouveau projet");
+    tableau.fin(scoresEl, charge, "lot " + (niveau % NIVEAUX.length + 1) + " · cycle " + cycle());
     log("Fin de gestion. Les briques restantes passeront en 2027.");
   } else {
     log("Balle perdue. Recadrage en séance, et on repart.");
@@ -530,17 +538,20 @@ function perdreCopil(){
 
 function lotTermine(){
   niveau++;
-  if(niveau >= NIVEAUX.length){
-    etat = "victoire";
-    montrer("Mise en production réussie",
-      "Site conforme, homologué, en ligne. Charge totale : " + charge + " jours-homme. Le prochain référentiel sort la semaine prochaine.",
-      "Repartir sur un nouveau projet");
-    log("Tout est tombé. Personne ne s'en apercevra, c'est le signe que ça marche.");
+  if(niveau % NIVEAUX.length === 0){
+    // Trois lots livres : le marche est renouvele, on repart plus vite.
+    copil++;
+    majHud();
+    etat = "lot";
+    montrer("Marché renouvelé — cycle " + cycle(),
+      "Site conforme, homologué, en ligne. Le marché est renouvelé : mêmes briques, nouveau référentiel, balle plus rapide. Un COPIL de plus pour la route.",
+      "Attaquer le cycle " + cycle());
+    log("Tout est tombé. Le marché est renouvelé, le mur aussi.");
   } else {
     etat = "lot";
-    montrer(NIVEAUX[niveau].nom,
+    montrer(NIVEAUX[niveau % NIVEAUX.length].nom,
       "Lot précédent livré. Le mur suivant est déjà monté.",
-      "Attaquer le lot " + (niveau + 1));
+      "Attaquer le lot " + (niveau % NIVEAUX.length + 1));
   }
 }
 
@@ -567,7 +578,7 @@ function dessiner(){
   ctx.fillRect(0, 0, W, 40);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, 40, W, 3);
-  pix.texte(ctx, NIVEAUX[Math.min(niveau, NIVEAUX.length-1)].nom, 14, 13, 2, "#FFCA00");
+  pix.texte(ctx, NIVEAUX[niveau % NIVEAUX.length].nom + (cycle() > 1 ? "  ·  CYCLE " + cycle() : ""), 14, 13, 2, "#FFCA00");
   const droite = pix.texte(ctx, charge + " J-H  ·  RESTE " + restantes(), W - 14, 15, 1.5, "#c9c9ff", "right");
   let ax = W - 14 - droite - 26;
   for(let i = 0; i < copil; i++){ pix.agent(ctx, ax - 14, 12, 14, "#FFCA00"); ax -= 17; }

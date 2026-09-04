@@ -85,6 +85,21 @@ La mesure est en JS et non en CSS parce que l'en-tête se replie selon la largeu
 colonne est en `clamp()` : une constante ne suivait pas. Le journal est géré par
 `Arcade.journal(el)`, qui garde l'historique dans un `.anciens` masqué en mode `pile`.
 
+## Paliers et tableau des scores
+
+Chaque jeu accélère avec la progression, et le dit dans le bandeau et le journal :
+
+- **Casse-brique** : trois lots, puis le marché est renouvelé (« cycle 2 ») avec les mêmes murs, un COPIL de plus et une balle 12 % plus rapide à chaque cycle. Plus de fin par victoire, le score est la charge en jours-homme.
+- **Snake** : un palier tous les dix profils. La vitesse gagne un cran par palier, la dette technique tombe tous les trois recrutements à partir du palier 3.
+- **Validation** : un exercice tous les trois dossiers, 6 % par dossier et 12 % de plus par exercice.
+- **Support** : trois phases de journée (matin, après-midi, fin de journée), chacune plus nerveuse, avec plus de demandes du cabinet le soir.
+
+Le tableau des scores est **local au navigateur** (`Arcade.scores(cle)`, dix entrées par jeu dans le
+`localStorage`) : le site reste statique, rien n'est envoyé. En fin de partie, si le score entre au
+tableau, l'overlay demande un pseudo, pré-rempli avec le dernier utilisé et modifiable ; il est aussi
+modifiable depuis l'accueil, qui affiche les cinq meilleurs de chaque jeu. Après l'inscription, un
+verrou de 900 ms empêche la touche Entrée qui a validé le formulaire de relancer une partie.
+
 ## Tactile
 
 Le cap du snake est décidé **pendant le `touchmove`**, dès que le glissement dépasse 22 px, et

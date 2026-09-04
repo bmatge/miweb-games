@@ -657,6 +657,120 @@
     ctx.fillRect(cx - r, cy - r, 2 * r, 2 * r);
   }
 
+
+  /* ------------------------------------------------------------------ */
+  /* Tableau des scores : local au navigateur, pseudo persistant          */
+  /* ------------------------------------------------------------------ */
+
+  var JEUX = [
+    { cle: "casse-brique", nom: "Casse-brique du chef de projet", unite: "jours-homme" },
+    { cle: "snake",        nom: "Snake, constituez votre équipe web", unite: "profils" },
+    { cle: "validation",   nom: "La chaîne de validation", unite: "dossiers en ligne" },
+    { cle: "support",      nom: "Le support N1 du site", unite: "points" }
+  ];
+  var CLE_PSEUDO = "miweb-games:pseudo", PSEUDO_MAX = 14;
+  // Apres l'inscription, la touche Entree qui a valide le formulaire ne doit
+  // pas relancer la partie dans la foulee : les jeux consultent ce verrou.
+  var verrouJusqua = 0;
+  function verrou() { return Date.now() < verrouJusqua; }
+
+  /** Pseudo du joueur, conserve dans ce navigateur et modifiable partout ou
+   *  il est demande (fin de partie, accueil). */
+  function pseudo(nouveau) {
+    if (nouveau !== undefined) {
+      var p = String(nouveau).trim().replace(/\s+/g, " ").slice(0, PSEUDO_MAX);
+      ecrireJSON(CLE_PSEUDO, p);
+      return p;
+    }
+    return lireJSON(CLE_PSEUDO, "") || "";
+  }
+
+  function lireJSON(cle, defaut) {
+    try { return JSON.parse(localStorage.getItem(cle)) || defaut; } catch (e) { return defaut; }
+  }
+  function ecrireJSON(cle, v) {
+    try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {}
+  }
+
+  /**
+   * Dix meilleurs scores d'un jeu, dans ce navigateur seulement (pas de
+   * serveur, pas de pistage : le site reste statique). `fin(zone, score,
+   * detail)` affiche dans `zone` soit la saisie du pseudo si le score entre
+   * au tableau, soit le tableau lui-meme.
+   */
+  function scores(cle) {
+    var CLE = "miweb-games:scores:" + cle, MAX = 10;
+    function lire() { return lireJSON(CLE, []); }
+    function qualifie(score) {
+      var l = lire();
+      return score > 0 && (l.length < MAX || score > l[l.length - 1].score);
+    }
+    function ajouter(score, nom, detail) {
+      var l = lire();
+      var e = { nom: nom, score: score, detail: detail || "", date: new Date().toISOString().slice(0, 10) };
+      l.push(e);
+      l.sort(function (a, b) { return b.score - a.score; });
+      l = l.slice(0, MAX);
+      ecrireJSON(CLE, l);
+      return l.indexOf(e);
+    }
+    function tableau(zone, surligne) {
+      var l = lire();
+      zone.innerHTML = "";
+      var t = document.createElement("table");
+      t.className = "scores";
+      var cap = document.createElement("caption");
+      cap.textContent = l.length ? "Tableau des scores, ce navigateur" : "Aucun score enregistré sur ce navigateur.";
+      t.appendChild(cap);
+      l.forEach(function (e, i) {
+        var tr = document.createElement("tr");
+        if (i === surligne) tr.className = "nouveau";
+        [String(i + 1), e.nom, String(e.score), e.detail].forEach(function (v, j) {
+          var td = document.createElement("td");
+          td.textContent = v;
+          if (j === 2) td.className = "score";
+          tr.appendChild(td);
+        });
+        t.appendChild(tr);
+      });
+      zone.appendChild(t);
+    }
+    function fin(zone, score, detail) {
+      if (!qualifie(score)) { tableau(zone, -1); return; }
+      zone.innerHTML = "";
+      var f = document.createElement("form");
+      f.className = "initiales";
+      var lab = document.createElement("label");
+      lab.textContent = "Nouveau score au tableau. Votre pseudo :";
+      lab.htmlFor = "pseudo-" + cle;
+      var inp = document.createElement("input");
+      inp.id = lab.htmlFor;
+      inp.maxLength = PSEUDO_MAX; inp.autocomplete = "off"; inp.spellcheck = false;
+      inp.placeholder = "Anonyme";
+      inp.value = pseudo();
+      var b = document.createElement("button");
+      b.type = "submit"; b.className = "btn"; b.textContent = "Inscrire";
+      f.appendChild(lab); f.appendChild(inp); f.appendChild(b);
+      f.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var nom = pseudo(inp.value) || "Anonyme";
+        var rang = ajouter(score, nom, detail);
+        tableau(zone, rang);
+        verrouJusqua = Date.now() + 900;
+        if (document.activeElement) document.activeElement.blur();
+      });
+      zone.appendChild(f);
+      setTimeout(function () { inp.focus(); inp.select(); }, 50);
+    }
+    return {
+      lire: lire, qualifie: qualifie, ajouter: ajouter, tableau: tableau, fin: fin,
+      meilleur: function () { var l = lire(); return l.length ? l[0].score : 0; }
+    };
+  }
+  scores.JEUX = JEUX;
+  scores.pseudo = pseudo;
+  scores.verrou = verrou;
+
   var pix = {
     MONO: MONO, SANS: SANS,
     grille: grille, biseau: biseau, picto: picto,
@@ -665,5 +779,5 @@
     damier: damier, cadre: cadre, lueur: lueur
   };
 
-  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, journal: journal, pix: pix };
+  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, journal: journal, scores: scores, pix: pix };
 })(window);

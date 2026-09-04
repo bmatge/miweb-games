@@ -43,6 +43,7 @@
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à recruter ?</h2>
         <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison de l'appareil. Chaque profil recruté allonge l'équipe.</p>
+        <div class="scores-zone" id="scores"></div>
         <button class="btn" id="ecran-btn">Constituer l'équipe</button>
       </div>
     </div>
@@ -94,6 +95,8 @@ const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
 const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("snake");
 const pucesEl = document.getElementById("puces");
 const hudEquipe = document.getElementById("hud-equipe");
 const hudCible = document.getElementById("hud-cible");
@@ -160,6 +163,12 @@ let etat = "menu";           // menu | jeu | pause | fin | victoire
 let serpent = [], dir = {x:1, y:0}, filedir = [];
 let cible = null, dettes = [], recrutes = [];
 let vitesse = 7, accu = 0, son = true, record = 0;
+const palier = () => Math.min(4, Math.floor(recrutes.length / 10) + 1);
+const PALIERS = {
+  2: "Palier 2. Plus de dix personnes : les réunions durent, l'équipe accélère.",
+  3: "Palier 3. Vingt profils. La dette technique tombe tous les trois recrutements.",
+  4: "Palier 4. Trente. Vous dirigez une DSI, et ça se voit à la vitesse."
+};
 let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
@@ -289,6 +298,7 @@ const TOUCHES = {
   q:[-1,0], z:[0,-1]
 };
 window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
   const k = TOUCHES[e.key] || TOUCHES[e.key.toLowerCase()];
   if(k){ e.preventDefault(); pousser(k[0], k[1]); }
   if(e.key === "p" || e.key === "P") basculerPause();
@@ -332,6 +342,7 @@ function basculerPause(){
 }
 
 function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
   titreEl.textContent = titre; texteEl.textContent = texte;
   btnEl.textContent = bouton; ecran.hidden = false;
 }
@@ -420,7 +431,8 @@ function recruter(){
   recrutes.push({nom: m.nom, famille: m.famille});
   bip(560 + recrutes.length * 8, .07);
   log(m.quip);
-  vitesse = Math.min(16, 7 + recrutes.length * 0.25);
+  // Un quart de pas par recrue, plus un cran par palier.
+  vitesse = Math.min(19, 7 + recrutes.length * 0.25 + (palier() - 1) * 0.9);
 
   if(recrutes.length > record){
     record = recrutes.length;
@@ -428,7 +440,8 @@ function recruter(){
     try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
   }
 
-  if(recrutes.length % 4 === 0) poserDette();
+  if(recrutes.length % 10 === 0 && PALIERS[palier()]) log(PALIERS[palier()]);
+  if(recrutes.length % (palier() >= 3 ? 3 : 4) === 0) poserDette();
 
   majHud(); majPuces();
 
@@ -437,6 +450,7 @@ function recruter(){
     montrer("Équipe au complet",
       "Quarante métiers réunis sur un même projet. Cela n'arrive jamais, et pourtant vous venez de le faire.",
       "Reconstituer une équipe");
+    tableau.fin(scoresEl, recrutes.length, "équipe au complet");
     log("Tous les postes sont pourvus. Le budget de l'année prochaine sera réduit.");
     bip(880, .2, "triangle");
     return;
@@ -452,6 +466,7 @@ function perdre(raison){
     raison + " Équipe constituée : " + recrutes.length + " profil" +
       (recrutes.length > 1 ? "s" : "") + " sur " + METIERS.length + ".",
     "Relancer un recrutement");
+  tableau.fin(scoresEl, recrutes.length, "palier " + palier());
   log(raison);
 }
 
@@ -477,7 +492,7 @@ function dessiner(){
   ctx.fillRect(0, 0, W, BANDEAU);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, BANDEAU - 3, W, 3);
-  pix.texte(ctx, "ÉQUIPE " + recrutes.length + "/" + METIERS.length, 14, 13, 2, "#FFCA00");
+  pix.texte(ctx, "ÉQUIPE " + recrutes.length + "/" + METIERS.length + "  ·  PALIER " + palier(), 14, 13, 2, "#FFCA00");
   if(cible){
     const f = FAMILLES[cible.famille];
     const w = pix.texteAjuste(ctx, cible.nom, W - 14, 15, 360, 1.5, "#c9c9ff", "right");

@@ -119,6 +119,33 @@ body.plein-actif{overflow:hidden}
   font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);
 }
 .overlay p{margin:0 0 14px;font-size:14px;max-width:44ch;color:#dcdcff}
+/* Tableau des scores et saisie des initiales, dans l'overlay de fin */
+.scores-zone{width:100%;max-width:380px;margin:0 0 14px}
+.scores-zone:empty{display:none}
+.scores{
+  width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;
+  background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);
+}
+.scores caption{
+  caption-side:top;text-align:left;padding:5px 10px;font-size:9.5px;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--sourd);
+}
+.scores td{padding:3px 10px;text-align:left;color:#dcdcff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:16ch}
+.scores td:first-child{color:var(--sourd);width:2ch}
+.scores td.score{text-align:right;color:var(--accent);font-weight:700}
+.scores td:last-child{color:var(--sourd);font-size:11px;white-space:normal;text-align:right}
+.scores tr.nouveau td{background:rgba(255,202,0,.18);color:#fff}
+.scores tr.nouveau td.score{color:#fff}
+.initiales{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.initiales label{font-size:13px;color:#dcdcff;flex-basis:100%}
+.initiales input{
+  width:16ch;font-family:var(--mono);font-size:16px;font-weight:700;letter-spacing:.06em;
+  text-align:center;color:var(--accent);
+  background:rgba(0,0,0,.5);border:2px solid var(--accent);padding:7px 8px;
+}
+.initiales input:focus{outline:2px solid #fff;outline-offset:2px}
+.initiales .btn{padding:9px 16px;font-size:12px}
+
 .btn{
   background:var(--accent);color:#161616;border:0;
   padding:11px 20px;font:inherit;font-family:var(--mono);font-weight:700;

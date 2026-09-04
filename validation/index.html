@@ -29,6 +29,7 @@
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à faire circuler ?</h2>
         <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison : un pas par geste. Traversez chaque instance entre deux obstacles. Se faire percuter renvoie le dossier au cadrage, jamais à la corbeille.</p>
+        <div class="scores-zone" id="scores"></div>
         <button class="btn" id="ecran-btn">Lancer le dossier</button>
       </div>
     </div>
@@ -80,6 +81,8 @@ const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
 const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("validation");
 const hudLigne = document.getElementById("hud-ligne");
 const hudRetours = document.getElementById("hud-retours");
 const hudChrono = document.getElementById("hud-chrono");
@@ -137,6 +140,7 @@ let etat = "menu";           // menu | jeu | pause | fin
 let joueur = {col: 11, row: R_DEPART};
 let voies = [];              // {row, obstacles:[{x, w, label}]}
 let enLigne = 0, retours = 0, chrono = CHRONO_DEPART, allure = 1;
+const exercice = () => Math.floor(enLigne / 3) + 1;   // tous les trois dossiers, un cran de plus
 let son = true, record = 0;
 let saut = 0, flashs = [], secousse = 0, invulnerable = 0;
 let dernierMot = "Dossier prêt. Il ne manque que dix avis.";
@@ -238,6 +242,7 @@ const TOUCHES = {
   a:[-1,0], d:[1,0], w:[0,-1], s:[0,1], q:[-1,0], z:[0,-1]
 };
 window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
   const k = TOUCHES[e.key] || TOUCHES[e.key.toLowerCase()];
   if(k){ e.preventDefault(); pas(k[0], k[1]); }
   if(e.key === "p" || e.key === "P") basculerPause();
@@ -282,6 +287,7 @@ function basculerPause(){
   else if(etat === "pause"){ cacher(); etat = "jeu"; }
 }
 function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
   titreEl.textContent = titre; texteEl.textContent = texte;
   btnEl.textContent = bouton; ecran.hidden = false;
 }
@@ -360,10 +366,12 @@ function percuter(def, o){
 function livrer(){
   enLigne++;
   chrono = Math.min(CHRONO_DEPART, chrono + BONUS_LIGNE);
-  allure *= 1.08;
+  // 6 % par dossier, et 12 % de plus a chaque exercice.
+  allure = Math.pow(1.06, enLigne) * Math.pow(1.12, exercice() - 1);
+  if(enLigne % 3 === 0) log("Exercice " + exercice() + ". Les instances ont recruté : tout circule plus vite.");
   flashs.push({col: joueur.col, row: R_LIGNE, t: .3, couleur: "#ffffff"});
   bip(700, .08, "triangle"); setTimeout(() => bip(940, .12, "triangle"), 90);
-  log(QUIPS_LIGNE[(enLigne - 1) % QUIPS_LIGNE.length]);
+  if(enLigne % 3 !== 0) log(QUIPS_LIGNE[(enLigne - 1) % QUIPS_LIGNE.length]);
   if(enLigne > record){
     record = enLigne;
     try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
@@ -384,6 +392,7 @@ function finDeGestion(){
     ". Ce qui reste repart l'année prochaine, avec un nouveau référentiel." +
     (record > 0 ? " Record : " + record + "." : ""),
     "Relancer un exercice");
+  tableau.fin(scoresEl, enLigne, "exercice " + exercice() + " · " + retours + " aller" + (retours > 1 ? "s" : "") + "-retour" + (retours > 1 ? "s" : ""));
   log("Fin de gestion. Les crédits sont tombés, le dossier aussi.");
 }
 
@@ -433,7 +442,7 @@ function dessiner(){
   ctx.fillRect(0, 0, W, BANDEAU);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, BANDEAU - 3, W, 3);
-  pix.texte(ctx, "DOSSIER " + (enLigne + 1) + "  ·  EN LIGNE " + enLigne, 14, 13, 2, "#FFCA00");
+  pix.texte(ctx, "EXERCICE " + exercice() + "  ·  EN LIGNE " + enLigne, 14, 13, 2, "#FFCA00");
   const urgent = chrono < 15 && etat === "jeu";
   const clignote = urgent && Math.floor(performance.now() / 300) % 2 === 0;
   pix.texte(ctx, formatChrono(chrono), W - 14, 13, 2, clignote ? "#ffffff" : (urgent ? "#E1000F" : "#c9c9ff"), "right");

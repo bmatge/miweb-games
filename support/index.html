@@ -33,6 +33,7 @@
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à prendre la ligne ?</h2>
         <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. « Page d'accueil HS » vaut triple. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer.</p>
+        <div class="scores-zone" id="scores"></div>
         <button class="btn" id="ecran-btn">Ouvrir le guichet</button>
       </div>
     </div>
@@ -75,6 +76,8 @@ const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
 const journal = Arcade.journal(journalEl);
 const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("support");
 const hudFermes = document.getElementById("hud-fermes");
 const hudN2 = document.getElementById("hud-n2");
 const hudHeure = document.getElementById("hud-heure");
@@ -187,18 +190,32 @@ function nouvellePartie(){
   for(let r = 0; r < ROWS; r++)
     for(let c = 0; c < COLS; c++)
       guichets.push({x: c * GW, y: BANDEAU + r * GH, ticket: null});
-  temps = 0; prochain = .8;
+  temps = 0; prochain = .8; phaseIdx = 0;
   fermes = 0; n2 = 0; points = 0;
   flashs = []; bulles = []; secousse = 0;
   majHud();
   log("Casque sur les oreilles. Le site est en ligne, donc la file est pleine.");
 }
 
-/** Cadence et duree d'affichage selon l'heure : le matin est calme, l'apres-
- *  midi ne l'est pas. `avancement` va de 0 (9 h) a 1 (18 h). */
+/** Trois phases dans la journee, chacune plus nerveuse : le matin, le
+ *  retour de dejeuner, la fin de journee ou le cabinet a des idees. */
+const PHASES = [
+  {des: 0,  nom: "MATIN",           intervalle: [1.15, .9], duree: [2.3, 1.9], cabinet: .10},
+  {des: 30, nom: "APRÈS-MIDI",      intervalle: [.85, .6],  duree: [1.8, 1.4], cabinet: .13,
+   annonce: "14 h. Tout le monde revient de déjeuner avec une question."},
+  {des: 60, nom: "FIN DE JOURNÉE",  intervalle: [.58, .4],  duree: [1.4, 1.05], cabinet: .2,
+   annonce: "16 h. Le cabinet a une idée pour la page d'accueil. Plusieurs, en fait."}
+];
+let phaseIdx = 0;
+function phase(){ return PHASES[phaseIdx]; }
 function rythme(){
-  const a = temps / JOURNEE;
-  return {intervalle: 1.15 - .7 * a, duree: 2.3 - 1.1 * a};
+  const ph = phase(), suiv = PHASES[phaseIdx + 1];
+  const fin = suiv ? suiv.des : JOURNEE;
+  const a = Math.min(1, (temps - ph.des) / (fin - ph.des));
+  return {
+    intervalle: ph.intervalle[0] + (ph.intervalle[1] - ph.intervalle[0]) * a,
+    duree: ph.duree[0] + (ph.duree[1] - ph.duree[0]) * a
+  };
 }
 
 function apparaitre(){
@@ -207,8 +224,8 @@ function apparaitre(){
   const g = libres[Math.floor(Math.random() * libres.length)];
   const r = Math.random();
   let type = "normal", label;
-  if(r < .12){ type = "cabinet"; label = "DEMANDE DU CABINET"; }
-  else if(r < .26){ type = "dg"; label = "PAGE D'ACCUEIL HS"; }
+  if(r < phase().cabinet){ type = "cabinet"; label = "DEMANDE DU CABINET"; }
+  else if(r < phase().cabinet + .14){ type = "dg"; label = "PAGE D'ACCUEIL HS"; }
   else label = TICKETS[Math.floor(Math.random() * TICKETS.length)];
   const {duree} = rythme();
   g.ticket = {label, type, t: 0, duree: duree * (type === "dg" ? .7 : 1), etat: "monte", h: 0};
@@ -270,6 +287,7 @@ cv.addEventListener("touchstart", e => {
 }, {passive:false});
 
 window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
   const d = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key];
   if(d){
     e.preventDefault();
@@ -293,6 +311,7 @@ function basculerPause(){
   else if(etat === "pause"){ cacher(); etat = "jeu"; }
 }
 function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
   titreEl.textContent = titre; texteEl.textContent = texte;
   btnEl.textContent = bouton; ecran.hidden = false;
 }
@@ -340,6 +359,11 @@ function maj(dt){
   tickHud += dt;
   if(tickHud > .5){ tickHud = 0; hudHeure.textContent = heure(); }
   if(temps >= JOURNEE) return finir(null);
+  if(PHASES[phaseIdx + 1] && temps >= PHASES[phaseIdx + 1].des){
+    phaseIdx++;
+    log(phase().annonce);
+    bip(660, .08, "triangle");
+  }
 
   prochain -= dt;
   if(prochain <= 0){ apparaitre(); prochain = rythme().intervalle * (.7 + Math.random() * .6); }
@@ -398,6 +422,7 @@ function finir(raison){
     montrer("18 h, fin de journée", bilan + " Demain, les mêmes tickets, avec les mêmes contributeurs.", "Refaire une journée");
     log("18 h. Le casque tombe. Le cache se remplit, la file aussi.");
   }
+  tableau.fin(scoresEl, points, fermes + " clos · " + n2 + " en N2 · " + heure());
 }
 
 /* ---------- dessin ---------- */
@@ -428,7 +453,7 @@ function dessiner(){
   ctx.fillRect(0, BANDEAU - 3, W, 3);
   pix.texte(ctx, "TICKETS CLOS " + fermes + "  ·  N2 " + n2 + "/" + N2_MAX, 14, 13, 2, "#FFCA00");
   pix.texte(ctx, heure(), W - 14, 13, 2, "#c9c9ff", "right");
-  pix.texte(ctx, "JOURNÉE", W - 14 - 70, 15, 1.5, "#8f8fd8", "right");
+  pix.texte(ctx, phase().nom, W - 14 - 70, 15, 1.5, "#8f8fd8", "right");
 
   // guichets : un comptoir biseaute, une fente sombre d'ou sortent les tickets
   for(let i = 0; i < guichets.length; i++){
