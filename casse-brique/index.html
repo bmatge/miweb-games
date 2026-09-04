@@ -88,9 +88,10 @@ function resize(){
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
 
-Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
   enPlein = on;
   setTimeout(resize, 60);
+  if(on) majBarre();
 });
 
 // Inclinaison : gamma pilote la barre en absolu — l'angle donne une position
@@ -302,12 +303,22 @@ btnEl.addEventListener("click", () => {
   }
 });
 
+let dernierMot = "En attente du feu vert.";
 function log(txt){
+  dernierMot = txt;
   journalEl.innerHTML = "<span>Journal de projet</span>" + txt;
+  majBarre();
 }
 function majHud(){
   hudCopil.textContent = copil;
   hudCharge.textContent = charge;
+  majBarre();
+}
+/** Mini en-tete du plein ecran : score a gauche, derniere phrase au centre. */
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(copil + " COPIL · " + charge + " j-h");
+  pleinEcran.message(dernierMot);
 }
 
 /* ---------- effets ---------- */

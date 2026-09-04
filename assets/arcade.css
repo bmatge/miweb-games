@@ -45,7 +45,13 @@ h1{
 .outil[aria-pressed="true"]{background:var(--bleu);color:#fff;border-color:var(--bleu)}
 .outil[hidden]{display:none}
 
-.board{position:relative;line-height:0;border:1px solid #000;background:var(--bleu)}
+.board{
+  position:relative;line-height:0;border:1px solid #000;background:var(--bleu);
+  /* Sur le conteneur ET sur le canvas : un glissement parti d'une zone hors
+     canvas (letterbox du plein ecran) serait sinon capte par le defilement de
+     la page, et le navigateur annulerait la sequence tactile. */
+  touch-action:none;
+}
 canvas{display:block;width:100%;height:auto;touch-action:none}
 
 /* Plein ecran : l'API native quand elle existe, sinon ce repli CSS — Safari iOS
@@ -82,3 +88,29 @@ body.plein-actif{overflow:hidden}
 .aide code{background:#fff;border:1px solid var(--gris);padding:1px 5px;font-size:12px}
 .legende{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#444}
 .legende i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px;border:1px solid #00000030}
+
+/* Barre affichee uniquement en plein ecran : sans elle, la coquille de page
+   disparait et il ne reste aucun moyen de sortir au doigt (Echap n'existe pas
+   sur mobile, et le repli CSS n'ouvre pas la sortie native du navigateur). */
+.barre-plein{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  display:none;align-items:center;gap:10px;
+  padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));
+  background:rgba(0,0,20,.72);color:#fff;line-height:1.3;
+  font-size:13px;
+}
+.board.plein .barre-plein{display:flex}
+.bp-stat{font-weight:700;white-space:nowrap}
+.bp-msg{
+  flex:1;min-width:0;color:#dcdcff;font-size:12.5px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.bp-sortie{
+  flex:none;background:var(--jaune);color:#161616;border:0;
+  padding:7px 12px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;
+}
+.bp-sortie:hover{background:#fff}
+.bp-sortie:focus-visible{outline:3px solid #fff;outline-offset:2px}
+@media (max-width:520px){
+  .bp-msg{display:none}
+}

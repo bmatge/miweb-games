@@ -193,24 +193,23 @@ function resize(){
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
 
-Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
   enPlein = on;
   setTimeout(resize, 60);
+  if(on) majBarre();
 });
 
 /* ---------- inclinaison ---------- */
-Arcade.inclinaison(document.getElementById("btn-inclinaison"), ({gamma, beta}) => {
+// On raisonne sur les ecarts a la position de depart, pas sur les angles
+// bruts : un telephone tenu en main repose autour de beta = 40 a 70 degres.
+// Comparer |gamma| a |beta| en absolu faisait gagner l'axe vertical en
+// permanence, et le serpent partait vers le bas sans qu'on puisse le redresser.
+Arcade.inclinaison(document.getElementById("btn-inclinaison"), ({dGamma, dBeta}) => {
   if(etat !== "jeu") return;
-  const SEUIL = 14;
-  // Axe dominant seulement : sur un appareil tenu a la main les deux axes
-  // bougent en permanence, arbitrer evite les changements de cap parasites.
-  if(Math.abs(gamma) > Math.abs(beta)){
-    if(gamma > SEUIL) pousser(1, 0);
-    else if(gamma < -SEUIL) pousser(-1, 0);
-  } else {
-    if(beta > SEUIL + 6) pousser(0, 1);
-    else if(beta < -SEUIL + 6) pousser(0, -1);
-  }
+  const SEUIL = 12;
+  if(Math.abs(dGamma) < SEUIL && Math.abs(dBeta) < SEUIL) return;   // zone neutre
+  if(Math.abs(dGamma) >= Math.abs(dBeta)) pousser(dGamma > 0 ? 1 : -1, 0);
+  else pousser(0, dBeta > 0 ? 1 : -1);
 });
 
 /* ---------- construction ---------- */
@@ -278,21 +277,36 @@ window.addEventListener("keydown", e => {
   if(e.key === " "){ e.preventDefault(); if(etat === "menu" || etat === "fin" || etat === "victoire") btnEl.click(); }
 });
 
-let depart = null;
+// Le cap est decide des que le glissement depasse le seuil, PENDANT le
+// touchmove — et non a la levee du doigt. Sur un vrai mobile, un glissement
+// vertical parti du plateau peut etre capte par le defilement de la page : le
+// navigateur annule alors la sequence et emet `touchcancel`, jamais
+// `touchend`. Attendre la levee revenait a ne jamais tourner.
+let depart = null, consomme = false;
+const SEUIL_SWIPE = 22;
+
 board.addEventListener("touchstart", e => {
   const t = e.touches[0];
   depart = {x: t.clientX, y: t.clientY};
+  consomme = false;
 }, {passive:true});
-board.addEventListener("touchmove", e => e.preventDefault(), {passive:false});
-board.addEventListener("touchend", e => {
-  if(!depart) return;
-  const t = e.changedTouches[0];
+
+board.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if(!depart || consomme) return;
+  const t = e.touches[0];
   const dx = t.clientX - depart.x, dy = t.clientY - depart.y;
-  depart = null;
-  if(Math.abs(dx) < 24 && Math.abs(dy) < 24) return;
+  if(Math.abs(dx) < SEUIL_SWIPE && Math.abs(dy) < SEUIL_SWIPE) return;
   if(Math.abs(dx) > Math.abs(dy)) pousser(dx > 0 ? 1 : -1, 0);
   else pousser(0, dy > 0 ? 1 : -1);
-}, {passive:true});
+  // Un seul changement de cap par glissement, mais on repart d'ici pour
+  // permettre un second geste sans relever le doigt.
+  depart = {x: t.clientX, y: t.clientY};
+}, {passive:false});
+
+const finTouche = () => { depart = null; consomme = false; };
+board.addEventListener("touchend", finTouche, {passive:true});
+board.addEventListener("touchcancel", finTouche, {passive:true});
 
 function basculerPause(){
   if(etat === "jeu"){ etat = "pause"; montrer("Recrutement suspendu", "Le poste est gelé le temps de l'arbitrage budgétaire.", "Reprendre"); }
@@ -311,10 +325,22 @@ btnEl.addEventListener("click", () => {
   etat = "jeu"; cacher();
 });
 
-function log(txt){ journalEl.innerHTML = "<span>Journal de recrutement</span>" + txt; }
+let dernierMot = "Poste ouvert, fiche de poste rédigée.";
+function log(txt){
+  dernierMot = txt;
+  journalEl.innerHTML = "<span>Journal de recrutement</span>" + txt;
+  majBarre();
+}
 function majHud(){
   hudEquipe.textContent = recrutes.length + " / " + METIERS.length;
   if(!cible) hudCible.textContent = "—";
+  majBarre();
+}
+/** Mini en-tete du plein ecran : score a gauche, derniere phrase au centre. */
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(recrutes.length + " / " + METIERS.length);
+  pleinEcran.message(dernierMot);
 }
 function majPuces(){
   if(recrutes.length === 0){

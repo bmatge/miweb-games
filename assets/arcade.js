@@ -21,12 +21,38 @@
   function plein(el, bouton, onChange) {
     var natif = !!(el.requestFullscreen || el.webkitRequestFullscreen);
 
+    // Barre de service, visible seulement en plein ecran. Elle porte la sortie :
+    // sur mobile il n'y a pas d'Echap, et le repli CSS n'ouvre pas la sortie
+    // native du navigateur — sans ce bouton on reste enferme dans le jeu.
+    var barre = document.createElement("div");
+    barre.className = "barre-plein";
+    var bStat = document.createElement("span");
+    bStat.className = "bp-stat";
+    var bMsg = document.createElement("span");
+    bMsg.className = "bp-msg";
+    var bSortie = document.createElement("button");
+    bSortie.className = "bp-sortie";
+    bSortie.type = "button";
+    bSortie.textContent = "Quitter";
+    barre.appendChild(bStat);
+    barre.appendChild(bMsg);
+    barre.appendChild(bSortie);
+    el.appendChild(barre);
+    bSortie.addEventListener("click", function (e) {
+      e.stopPropagation();
+      basculer();
+    });
+
+    // `.plein` est posee dans les DEUX modes, natif comme repli. Elle porte la
+    // mise en page plein ecran (centrage, letterbox) ET l'affichage de la
+    // barre : sans elle en mode natif, il n'y avait aucun bouton de sortie.
+    var modeNatif = false;
+
     function actif() {
-      return !!(document.fullscreenElement || document.webkitFullscreenElement) ||
-        el.classList.contains("plein");
+      return el.classList.contains("plein");
     }
 
-    function replier(on) {
+    function poser(on) {
       el.classList.toggle("plein", on);
       document.body.classList.toggle("plein-actif", on);
       majBouton();
@@ -42,27 +68,34 @@
 
     function basculer() {
       if (actif()) {
-        if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
-        else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
-        else replier(false);
+        if (modeNatif) {
+          if (document.exitFullscreen) document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          else { modeNatif = false; poser(false); }
+        } else {
+          poser(false);
+        }
         return;
       }
       if (natif) {
         var p = (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
-        if (p && p.catch) p.catch(function () { replier(true); });
+        // La classe est posee par l'evenement fullscreenchange en cas de
+        // succes ; en cas de refus on bascule sur le repli CSS.
+        if (p && p.catch) p.catch(function () { modeNatif = false; poser(true); });
         return;
       }
-      replier(true);
+      poser(true);
     }
 
     function surChangement() {
-      var natifActif = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      // Sortie via Echap : nettoyer aussi l'etat du repli.
-      if (!natifActif && el.classList.contains("plein") && natif) replier(false);
-      else {
-        document.body.classList.toggle("plein-actif", natifActif || el.classList.contains("plein"));
-        majBouton();
-        if (onChange) onChange(actif());
+      var elNatif = document.fullscreenElement || document.webkitFullscreenElement;
+      if (elNatif === el) {
+        modeNatif = true;
+        poser(true);
+      } else if (modeNatif) {
+        // Sortie native (bouton, Echap, geste du navigateur) : nettoyer.
+        modeNatif = false;
+        poser(false);
       }
     }
 
@@ -71,7 +104,12 @@
     if (bouton) bouton.addEventListener("click", basculer);
     majBouton();
 
-    return { basculer: basculer, actif: actif };
+    return {
+      basculer: basculer,
+      actif: actif,
+      stat: function (t) { bStat.textContent = t; },
+      message: function (t) { bMsg.textContent = t; }
+    };
   }
 
   /* ------------------------------------------------------------------ */
@@ -81,9 +119,14 @@
   /**
    * Active le pilotage a l'inclinaison.
    *
-   * `onTilt` recoit `{gamma, beta}` en degres, deja corriges de l'orientation
-   * de l'ecran : gamma > 0 = appareil penche vers la droite, beta > 0 = penche
-   * vers l'avant (haut de l'ecran qui s'eloigne).
+   * `onTilt` recoit `{gamma, beta, dGamma, dBeta}` en degres, deja corriges de
+   * l'orientation de l'ecran : gamma > 0 = appareil penche vers la droite,
+   * beta > 0 = penche vers l'avant.
+   *
+   * `dGamma`/`dBeta` sont relatifs a la position de depart, capturee a
+   * l'activation. C'est ce qu'il faut des que les deux axes comptent : un
+   * telephone tenu en main repose autour de beta = 40 a 70 degres, jamais 0.
+   * Comparer les valeurs brutes ferait gagner l'axe vertical en permanence.
    *
    * iOS 13+ exige une demande de permission declenchee par un geste
    * utilisateur — d'ou le bouton. Ailleurs, l'ecoute demarre directement. Le
@@ -96,7 +139,7 @@
     // Un poste fixe expose DeviceOrientationEvent sans jamais l'emettre : on
     // n'affiche le bouton que si un evenement porteur de valeurs arrive, ou si
     // une permission est explicitement requise (donc mobile).
-    var actif = false, vu = false;
+    var actif = false, vu = false, refG = null, refB = null;
 
     if (!supporte || !bouton) {
       if (bouton) bouton.hidden = true;
@@ -125,7 +168,10 @@
       else if (angle === 180) { gg = -g; bb = -b; }
       else if (angle === 270 || angle === -90) { gg = -b; bb = g; }
 
-      onTilt({ gamma: gg, beta: bb });
+      // Premiere mesure apres activation : elle devient le neutre.
+      if (refG === null) { refG = gg; refB = bb; }
+
+      onTilt({ gamma: gg, beta: bb, dGamma: gg - refG, dBeta: bb - refB });
     }
 
     function majBouton() {
@@ -135,6 +181,7 @@
 
     function demarrer() {
       global.addEventListener("deviceorientation", surOrientation);
+      refG = refB = null;   // re-etalonnage a chaque activation
       actif = true;
       majBouton();
     }
@@ -146,6 +193,7 @@
       if (actif) {
         global.removeEventListener("deviceorientation", surOrientation);
         actif = false;
+        refG = refB = null;
         majBouton();
         return;
       }
