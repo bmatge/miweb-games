@@ -141,7 +141,7 @@
 
   <section class="scores-section" aria-labelledby="scores-titre">
     <h2 id="scores-titre">Tableau des scores</h2>
-    <p class="note">Les scores restent dans ce navigateur : rien n'est envoyé, rien n'est partagé. Le pseudo est proposé à chaque fin de partie, vous pouvez le changer ici.</p>
+    <p class="note" id="scores-note">Le tableau est partagé entre tous les joueurs. Seuls le pseudo, le score et la date sont enregistrés. Le pseudo est proposé à chaque fin de partie, vous pouvez le changer ici.</p>
     <form class="pseudo" id="form-pseudo">
       <label for="pseudo">Votre pseudo</label>
       <input id="pseudo" maxlength="14" autocomplete="nickname" placeholder="Anonyme">
@@ -236,31 +236,35 @@
     setTimeout(() => { ok.hidden = true; }, 2000);
   });
   const conteneur = document.getElementById("tableaux");
-  Arcade.scores.JEUX.forEach(j => {
-    const l = Arcade.scores(j.cle).lire().slice(0, 5);
-    const bloc = document.createElement("div");
-    bloc.className = "bloc";
-    const h = document.createElement("h3"); h.textContent = j.nom;
-    const u = document.createElement("p"); u.className = "unite"; u.textContent = j.unite;
-    bloc.appendChild(h); bloc.appendChild(u);
-    if(!l.length){
-      const v = document.createElement("p"); v.className = "vide";
-      v.textContent = "Aucune partie enregistrée.";
-      bloc.appendChild(v);
-    } else {
-      const t = document.createElement("table");
-      l.forEach((e, i) => {
-        const tr = document.createElement("tr");
-        [String(i + 1), e.nom, String(e.score), e.detail].forEach((v, k) => {
-          const td = document.createElement("td"); td.textContent = v;
-          if(k === 2) td.className = "score";
-          tr.appendChild(td);
+  Arcade.scores.tous((tous, partage) => {
+    if(!partage) document.getElementById("scores-note").textContent =
+      "Le tableau partagé est injoignable : voici les scores de ce navigateur seulement.";
+    Arcade.scores.JEUX.forEach(j => {
+      const l = (tous[j.cle] || []).slice(0, 5);
+      const bloc = document.createElement("div");
+      bloc.className = "bloc";
+      const h = document.createElement("h3"); h.textContent = j.nom;
+      const u = document.createElement("p"); u.className = "unite"; u.textContent = j.unite;
+      bloc.appendChild(h); bloc.appendChild(u);
+      if(!l.length){
+        const v = document.createElement("p"); v.className = "vide";
+        v.textContent = "Aucune partie enregistrée.";
+        bloc.appendChild(v);
+      } else {
+        const t = document.createElement("table");
+        l.forEach((e, i) => {
+          const tr = document.createElement("tr");
+          [String(i + 1), e.nom, String(e.score), e.detail].forEach((v, k) => {
+            const td = document.createElement("td"); td.textContent = v;
+            if(k === 2) td.className = "score";
+            tr.appendChild(td);
+          });
+          t.appendChild(tr);
         });
-        t.appendChild(tr);
-      });
-      bloc.appendChild(t);
-    }
-    conteneur.appendChild(bloc);
+        bloc.appendChild(t);
+      }
+      conteneur.appendChild(bloc);
+    });
   });
 })();
 </script>

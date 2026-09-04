@@ -692,35 +692,57 @@
     try { localStorage.setItem(cle, JSON.stringify(v)); } catch (e) {}
   }
 
+  var API = "/api/scores";
+
   /**
-   * Dix meilleurs scores d'un jeu, dans ce navigateur seulement (pas de
-   * serveur, pas de pistage : le site reste statique). `fin(zone, score,
-   * detail)` affiche dans `zone` soit la saisie du pseudo si le score entre
-   * au tableau, soit le tableau lui-meme.
+   * Tableau des scores d'un jeu, partage entre tous les joueurs via l'API
+   * (`api/server.js`, dix entrees renvoyees). Si l'API ne repond pas
+   * (serveur de dev statique, panne), on retombe sur un tableau local a ce
+   * navigateur, et le titre le dit.
+   *
+   * `fin(zone, score, detail)` affiche dans `zone` la saisie du pseudo si le
+   * score entre au tableau, sinon le tableau lui-meme.
    */
   function scores(cle) {
     var CLE = "miweb-games:scores:" + cle, MAX = 10;
-    function lire() { return lireJSON(CLE, []); }
-    function qualifie(score) {
-      var l = lire();
-      return score > 0 && (l.length < MAX || score > l[l.length - 1].score);
-    }
-    function ajouter(score, nom, detail) {
-      var l = lire();
+    function lireLocal() { return lireJSON(CLE, []); }
+    function ajouterLocal(score, nom, detail) {
+      var l = lireLocal();
       var e = { nom: nom, score: score, detail: detail || "", date: new Date().toISOString().slice(0, 10) };
       l.push(e);
       l.sort(function (a, b) { return b.score - a.score; });
       l = l.slice(0, MAX);
       ecrireJSON(CLE, l);
-      return l.indexOf(e);
+      return { rang: l.indexOf(e), top: l };
     }
-    function tableau(zone, surligne) {
-      var l = lire();
+    /** Charge le tableau : `cb(liste, partage)`, partage=false en repli local. */
+    function charger(cb) {
+      if (typeof fetch !== "function") return cb(lireLocal(), false);
+      fetch(API + "/" + cle, { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (l) { cb(Array.isArray(l) ? l : [], true); })
+        .catch(function () { cb(lireLocal(), false); });
+    }
+    function envoyer(score, nom, detail, cb) {
+      fetch(API, {
+        method: "POST", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jeu: cle, nom: nom, score: score, detail: detail })
+      })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+        .then(function (rep) { cb(rep, true); })
+        .catch(function () { cb(ajouterLocal(score, nom, detail), false); });
+    }
+    function qualifie(score, l) {
+      return score > 0 && (l.length < MAX || score > l[l.length - 1].score);
+    }
+    function tableau(zone, l, surligne, partage) {
       zone.innerHTML = "";
       var t = document.createElement("table");
       t.className = "scores";
       var cap = document.createElement("caption");
-      cap.textContent = l.length ? "Tableau des scores, ce navigateur" : "Aucun score enregistré sur ce navigateur.";
+      cap.textContent = !l.length ? "Aucun score pour l'instant." :
+        partage ? "Tableau des scores, tous joueurs" : "Tableau des scores, ce navigateur (hors ligne)";
       t.appendChild(cap);
       l.forEach(function (e, i) {
         var tr = document.createElement("tr");
@@ -735,8 +757,7 @@
       });
       zone.appendChild(t);
     }
-    function fin(zone, score, detail) {
-      if (!qualifie(score)) { tableau(zone, -1); return; }
+    function formulaire(zone, score, detail, partage) {
       zone.innerHTML = "";
       var f = document.createElement("form");
       f.className = "initiales";
@@ -754,19 +775,38 @@
       f.addEventListener("submit", function (e) {
         e.preventDefault();
         var nom = pseudo(inp.value) || "Anonyme";
-        var rang = ajouter(score, nom, detail);
-        tableau(zone, rang);
-        verrouJusqua = Date.now() + 900;
-        if (document.activeElement) document.activeElement.blur();
+        b.disabled = true; b.textContent = "…";
+        envoyer(score, nom, detail, function (rep, ok) {
+          tableau(zone, rep.top || [], rep.rang, ok && partage);
+          verrouJusqua = Date.now() + 900;
+          if (document.activeElement) document.activeElement.blur();
+        });
       });
       zone.appendChild(f);
       setTimeout(function () { inp.focus(); inp.select(); }, 50);
     }
-    return {
-      lire: lire, qualifie: qualifie, ajouter: ajouter, tableau: tableau, fin: fin,
-      meilleur: function () { var l = lire(); return l.length ? l[0].score : 0; }
-    };
+    function fin(zone, score, detail) {
+      zone.innerHTML = "";
+      charger(function (l, partage) {
+        if (qualifie(score, l)) formulaire(zone, score, detail, partage);
+        else tableau(zone, l, -1, partage);
+      });
+    }
+    return { charger: charger, qualifie: qualifie, tableau: tableau, fin: fin, lire: lireLocal };
   }
+  /** Tous les tableaux d'un coup, pour l'accueil : `cb({jeu: liste}, partage)`. */
+  scores.tous = function (cb) {
+    var local = function () {
+      var o = {};
+      JEUX.forEach(function (j) { o[j.cle] = lireJSON("miweb-games:scores:" + j.cle, []); });
+      cb(o, false);
+    };
+    if (typeof fetch !== "function") return local();
+    fetch(API, { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (o) { cb(o || {}, true); })
+      .catch(local);
+  };
   scores.JEUX = JEUX;
   scores.pseudo = pseudo;
   scores.verrou = verrou;

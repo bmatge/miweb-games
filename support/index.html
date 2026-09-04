@@ -32,7 +32,7 @@
       <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu du support N1"></canvas>
       <div class="overlay" id="ecran">
         <h2 id="ecran-titre">Prêt à prendre la ligne ?</h2>
-        <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. « Page d'accueil HS » vaut triple. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer.</p>
+        <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. « Page d'accueil HS » vaut triple. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer. Les couleurs ne disent rien, lisez.</p>
         <div class="scores-zone" id="scores"></div>
         <button class="btn" id="ecran-btn">Ouvrir le guichet</button>
       </div>
@@ -46,9 +46,9 @@
     <p class="chapo">Vous tenez le support de premier niveau d'un site sous Drupal. Douze guichets, les tickets sortent la tête : « bug CSS », « nouvelle demande », « nouveau contributeur », « je me rappelle plus », « accès Totem », « le BO ne répond plus ». Vous tapez avant qu'ils ne remontent en N2. <strong>Certains ne se tapent pas</strong> : une demande du cabinet, on l'escalade.</p>
 
     <div class="legende">
-      <div><i style="background:#ffffff"></i>Ticket ordinaire</div>
-      <div><i style="background:#FFCA00"></i>Page d'accueil HS — vaut triple</div>
-      <div><i style="background:#E1000F"></i>Demande du cabinet — ne pas taper</div>
+      <div><i style="background:#ffffff"></i>« Page d'accueil HS » vaut triple</div>
+      <div><i style="background:#E1000F"></i>« Demande du cabinet » ne se tape pas</div>
+      <div><i style="background:#0078a8"></i>Les couleurs ne disent rien : lisez l'étiquette</div>
     </div>
 
     <p class="aide">La journée dure de 9 h à 18 h en <strong>90 secondes</strong>, et le rythme monte après la pause déjeuner. Huit tickets remontés en N2 et le N2 vous convoque. Taper une demande du cabinet en compte deux. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
@@ -111,6 +111,13 @@ const QUIPS_DG = [
   "Accueil rétabli en quatre secondes. C'était le cache. C'est toujours le cache.",
   "Accueil HS : quelqu'un avait dépublié le nœud 1. Republié.",
   "Page d'accueil revenue. Le bloc « actualités » n'a pas survécu, personne ne le pleure."
+];
+// Les couleurs ne disent rien du ticket : chemise et bulle sont tirees au
+// hasard, seule l'etiquette compte. C'est ce qui rend le cabinet dangereux.
+const CHEMISES = ["#ffffff", "#FFCA00", "#E1000F", "#0078a8", "#18753C", "#6a2ea0", "#1f9e89", "#e8730a"];
+const BULLES = [
+  ["#ffffff", "#161616"], ["#FFCA00", "#161616"], ["#E1000F", "#ffffff"], ["#0078a8", "#ffffff"],
+  ["#18753C", "#ffffff"], ["#6a2ea0", "#ffffff"], ["#e8730a", "#161616"], ["#c2185b", "#ffffff"]
 ];
 const QUIPS_N2 = [
   "Remonté en N2. C'est un module contrib, ils vont dire que c'est le thème.",
@@ -228,7 +235,9 @@ function apparaitre(){
   else if(r < phase().cabinet + .14){ type = "dg"; label = "PAGE D'ACCUEIL HS"; }
   else label = TICKETS[Math.floor(Math.random() * TICKETS.length)];
   const {duree} = rythme();
-  g.ticket = {label, type, t: 0, duree: duree * (type === "dg" ? .7 : 1), etat: "monte", h: 0};
+  g.ticket = {label, type, t: 0, duree: duree * (type === "dg" ? .7 : 1), etat: "monte", h: 0,
+    chemise: CHEMISES[Math.floor(Math.random() * CHEMISES.length)],
+    bulle: BULLES[Math.floor(Math.random() * BULLES.length)]};
 }
 
 /* ---------- interactions ---------- */
@@ -474,16 +483,14 @@ function dessiner(){
       ctx.save();
       ctx.beginPath(); ctx.rect(x, y, w, fy - y + 4); ctx.clip();
       const ty = fy + 6 - taille * t.h;
-      const chemise = t.type === "cabinet" ? "#E1000F" : t.type === "dg" ? "#FFCA00" : "#ffffff";
-      if(t.h > .2) pix.lueur(ctx, x + w / 2, ty + taille / 2, taille, chemise, .25 * t.h);
-      pix.agent(ctx, x + w / 2 - taille / 2, ty, taille, chemise);
+      if(t.h > .2) pix.lueur(ctx, x + w / 2, ty + taille / 2, taille, t.chemise, .25 * t.h);
+      pix.agent(ctx, x + w / 2 - taille / 2, ty, taille, t.chemise);
       ctx.restore();
       // l'etiquette au-dessus, quand le ticket est sorti
       if(t.h > .6 && t.etat !== "ferme"){
         const lw = Math.min(w - 8, pix.largeur(t.label, 1.5) + 16);
         const ly = Math.max(y + 4, sommet - 24);
-        const fond = t.type === "cabinet" ? "#E1000F" : t.type === "dg" ? "#FFCA00" : "#ffffff";
-        const enc = t.type === "cabinet" ? "#ffffff" : "#161616";
+        const fond = t.bulle[0], enc = t.bulle[1];
         pix.biseau(ctx, x + w / 2 - lw / 2, ly, lw, 20, 2, fond);
         pix.texteAjuste(ctx, t.label, x + w / 2, ly + 5, lw - 12, 1.5, enc, "center");
         // barre de temps restant

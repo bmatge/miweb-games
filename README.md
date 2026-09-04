@@ -92,7 +92,7 @@ Chaque jeu accélère avec la progression, et le dit dans le bandeau et le journ
 - **Casse-brique** : trois lots, puis le marché est renouvelé (« cycle 2 ») avec les mêmes murs, un COPIL de plus et une balle 12 % plus rapide à chaque cycle. Plus de fin par victoire, le score est la charge en jours-homme.
 - **Snake** : un palier tous les dix profils. La vitesse gagne un cran par palier, la dette technique tombe tous les trois recrutements à partir du palier 3.
 - **Validation** : un exercice tous les trois dossiers, 6 % par dossier et 12 % de plus par exercice.
-- **Support** : trois phases de journée (matin, après-midi, fin de journée), chacune plus nerveuse, avec plus de demandes du cabinet le soir.
+- **Support** : trois phases de journée (matin, après-midi, fin de journée), chacune plus nerveuse, avec plus de demandes du cabinet le soir. Chemise et bulle sont tirées au hasard : la couleur ne dit rien du ticket, seule l'étiquette compte.
 
 Le tableau des scores est **local au navigateur** (`Arcade.scores(cle)`, dix entrées par jeu dans le
 `localStorage`) : le site reste statique, rien n'est envoyé. En fin de partie, si le score entre au
