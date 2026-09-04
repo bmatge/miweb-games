@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Les guichets</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icones/icone-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icones/icone-192.png">
+<meta name="theme-color" content="#000091">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="miweb games">
+<link rel="stylesheet" href="../assets/arcade.css?v=6">
+</head>
+<body>
+<div class="wrap jeu">
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Les guichets <span class="sous">/ quatre comptoirs, une seule personne</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-servis">0</b><span>usagers servis</span></div>
+      <div class="stat"><b id="hud-mediateur">0 / 3</b><span>réclamations</span></div>
+      <div class="stat"><b id="hud-heure">9 h</b><span>heure</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="scene" id="scene" style="--ratio:1.6327">
+    <div class="board" id="board">
+      <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu des guichets"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Prêt à ouvrir ?</h2>
+        <p id="ecran-texte">Haut et bas pour changer de comptoir, espace, clic ou tap pour envoyer une réponse. Elle glisse jusqu'au premier usager de la file et le renvoie satisfait. Rattrapez les retours qui reviennent vers vous.</p>
+        <div class="scores-zone" id="scores"></div>
+        <button class="btn" id="ecran-btn">Ouvrir les guichets</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Neuf heures. Les quatre files sont déjà pleines.</em></div>
+
+  <section class="notice">
+    <p class="chapo">Quatre comptoirs en parallèle : téléphone, mail, formulaire en ligne, accueil physique. Les usagers avancent vers vous depuis le fond de chaque file. Vous passez de comptoir en comptoir et vous lancez une réponse qui glisse jusqu'à eux. <strong>Bien dosée, elle les repousse</strong> ; envoyée dans le vide, c'est une réclamation. Et il faut rattraper les retours : les « merci, mais ça ne répond pas à ma question ».</p>
+
+    <div class="legende">
+      <div><i style="background:#FFCA00"></i>Une réponse : glisse jusqu'au premier de la file</div>
+      <div><i style="background:#9a9a9a"></i>Un retour : à rattraper au comptoir</div>
+      <div><i style="background:#E1000F"></i>Un usager au bout du comptoir : réclamation au médiateur</div>
+    </div>
+
+    <p class="aide">Trois réclamations et le <strong>médiateur</strong> est saisi. Une réponse envoyée à personne compte aussi. Le rythme monte chaque heure. <code>P</code> met en pause.</p>
+  </section>
+  </aside>
+</div>
+
+<script src="../assets/arcade.js?v=6"></script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- plateau ---------- */
+const W = 800, H = 490, BANDEAU = 40;
+const FILES = 4, FH = (H - BANDEAU) / FILES;          // 112.5 px par comptoir
+const X_COMPTOIR = 96;                                // au-dela, l'usager deborde
+const X_JOUEUR = 44;
+
+const cv = document.getElementById("jeu");
+const ctx = cv.getContext("2d");
+const board = document.getElementById("board");
+const ecran = document.getElementById("ecran");
+const titreEl = document.getElementById("ecran-titre");
+const texteEl = document.getElementById("ecran-texte");
+const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
+const journalEl = document.getElementById("journal");
+const journal = Arcade.journal(journalEl);
+const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("guichets");
+const hudServis = document.getElementById("hud-servis");
+const hudMediateur = document.getElementById("hud-mediateur");
+const hudHeure = document.getElementById("hud-heure");
+const btnSon = document.getElementById("btn-son");
+
+/* ---------- les comptoirs ---------- */
+const COMPTOIRS = [
+  {nom:"TÉLÉPHONE",  fond:"#0078a8", plaintes:["ALLÔ ?","40 MIN D'ATTENTE","LA MUSIQUE, ENCORE","C'EST LE BON SERVICE ?"]},
+  {nom:"MAIL",       fond:"#6a2ea0", plaintes:["URGENT","SANS RÉPONSE","VOIR PJ","RELANCE N°3"]},
+  {nom:"FORMULAIRE", fond:"#18753C", plaintes:["ERREUR 500","CHAMP OBLIGATOIRE","ÇA BOUCLE","PDF REFUSÉ"]},
+  {nom:"ACCUEIL",    fond:"#e8730a", plaintes:["J'AI PAS DE RDV","C'EST OÙ LE 2E ?","JE SUIS PRESSÉ","ON M'A DIT ICI"]}
+];
+const CHEMISES = ["#ffffff", "#c9c9ff", "#f2d5a0", "#a8d8c9", "#e6a8c8", "#d9d9d9"];
+const QUIPS_SERVI = [
+  "Réponse en trois lignes. La personne repart, presque contente.",
+  "Dossier réorienté vers le bon service. Le bon, cette fois.",
+  "« C'est expliqué sur le site. » Il fallait juste le dire avec un sourire.",
+  "Formulaire débloqué : c'était le code postal avec un espace.",
+  "Rappel effectué. La personne avait oublié pourquoi elle appelait.",
+  "Un rendez-vous pris, une file plus courte."
+];
+const QUIPS_RETOUR = [
+  "Retour rattrapé : « merci, mais ça ne répond pas à ma question ». Vous répondez à la question.",
+  "Retour rattrapé. Deuxième réponse, la bonne, sans le lien vers la FAQ.",
+  "Retour rattrapé : la personne voulait juste être écoutée. Fait."
+];
+const QUIPS_HEURE = {
+  2: "10 h. Le café refroidit, les files s'allongent.",
+  3: "11 h. Le téléphone ne s'arrête plus. Le formulaire non plus.",
+  4: "12 h. Pause déjeuner pour tout le monde, sauf pour vous.",
+  5: "14 h. Retour de déjeuner : tout le monde a une question.",
+  6: "16 h. Le médiateur a envoyé un mail « pour information ».",
+  7: "17 h. Dernière heure. Personne ne part."
+};
+
+/* ---------- etat ---------- */
+let etat = "menu";           // menu | jeu | pause | fin
+let files = [], reponses = [], retours = [];
+let joueur = {file: 0, look: {chemise: "#FFCA00", cheveux: "#e9eaf2", peau: "#f2b8a0", cravate: "#161616"}};
+let servis = 0, reclamations = 0, points = 0, temps = 0, son = true;
+let prochain = 1.2, secousse = 0, flashs = [], bulles = [], geste = 0;
+const RECLAMATIONS_MAX = 3;
+const heure = () => Math.min(7, Math.floor(servis / 8) + 1);
+
+/* ---------- audio ---------- */
+let ac = null;
+function bip(freq, dur, type){
+  if(!son) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+btnSon.addEventListener("click", () => {
+  son = !son;
+  btnSon.textContent = "Son : " + (son ? "activé" : "coupé");
+  btnSon.setAttribute("aria-pressed", String(son));
+});
+
+/* ---------- rendu adaptatif + plein ecran ---------- */
+let enPlein = false;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  let cssW, cssH;
+  if(enPlein){
+    const vp = Arcade.viewport();
+    const dispoH = vp.h - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(vp.w / W, dispoH / H);
+    cssW = Math.floor(W * s); cssH = Math.floor(H * s);
+    cv.style.width = cssW + "px";
+  } else {
+    cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
+    cssW = board.clientWidth || W;
+    cssH = cssW * H / W;
+  }
+  cv.style.height = cssH + "px";
+  cv.width = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+  const s = (cssW / W) * dpr;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("load", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+if(window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(resize, 50));
+
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+  enPlein = on;
+  setTimeout(resize, 60);
+  if(on) majBarre();
+});
+
+/* ---------- construction ---------- */
+function nouvellePartie(){
+  files = COMPTOIRS.map(() => []);
+  reponses = []; retours = []; flashs = []; bulles = [];
+  joueur.file = 0;
+  servis = 0; reclamations = 0; points = 0; temps = 0; prochain = 1.2; secousse = 0;
+  // Les files ne sont jamais vides a l'ouverture : un usager par comptoir,
+  // a des distances differentes, pour que la premiere reponse ait une cible.
+  for(let i = 0; i < FILES; i++){
+    const c = COMPTOIRS[i], look = pix.lookAleatoire();
+    look.chemise = CHEMISES[Math.floor(Math.random() * CHEMISES.length)];
+    files[i].push({x: W - 120 - i * 90 - Math.random() * 60, look, plainte: c.plaintes[Math.floor(Math.random() * c.plaintes.length)], etat: "avance", v: rythme().vitesse});
+  }
+  majHud();
+  log("Neuf heures. Les quatre files sont déjà pleines.");
+}
+
+/** Cadence et vitesse de marche selon l'heure. */
+function rythme(){
+  const h = heure();
+  return {intervalle: Math.max(.55, 2.1 - .24 * (h - 1)), vitesse: 52 + 11 * (h - 1)};
+}
+
+function arriver(){
+  // Une file au hasard, si son dernier usager a deja avance un peu.
+  const candidates = files.map((f, i) => i).filter(i => {
+    const f = files[i];
+    return !f.length || f[f.length - 1].x < W - 70;
+  });
+  if(!candidates.length) return;
+  const i = candidates[Math.floor(Math.random() * candidates.length)];
+  const c = COMPTOIRS[i];
+  const look = pix.lookAleatoire();
+  look.chemise = CHEMISES[Math.floor(Math.random() * CHEMISES.length)];
+  files[i].push({x: W + 20, look, plainte: c.plaintes[Math.floor(Math.random() * c.plaintes.length)], etat: "avance", v: rythme().vitesse * (.9 + Math.random() * .2)});
+}
+
+/* ---------- interactions ---------- */
+function changerFile(d){
+  if(etat !== "jeu") return;
+  const f = Math.max(0, Math.min(FILES - 1, joueur.file + d));
+  if(f !== joueur.file){ joueur.file = f; bip(380, .03); }
+}
+function envoyer(){
+  if(etat !== "jeu") return;
+  // Une seule reponse en vol par comptoir : on ne peut pas mitrailler.
+  if(reponses.some(r => r.file === joueur.file)) return;
+  reponses.push({file: joueur.file, x: X_COMPTOIR, v: 400});
+  geste = .12;
+  bip(620, .05);
+}
+
+window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
+  const k = e.key.toLowerCase();
+  if(e.key === "ArrowUp" || k === "z" || k === "w"){ e.preventDefault(); changerFile(-1); }
+  if(e.key === "ArrowDown" || k === "s"){ e.preventDefault(); changerFile(1); }
+  if(e.key === " " || e.key === "Enter" || e.key === "ArrowRight"){
+    e.preventDefault();
+    if(etat === "menu" || etat === "fin"){ btnEl.click(); return; }
+    envoyer();
+  }
+  if(k === "p") basculerPause();
+});
+cv.addEventListener("mousedown", e => {
+  // Un clic dans une file la selectionne et envoie.
+  const r = cv.getBoundingClientRect();
+  const y = (e.clientY - r.top) / r.height * H;
+  if(y > BANDEAU) joueur.file = Math.max(0, Math.min(FILES - 1, Math.floor((y - BANDEAU) / FH)));
+  envoyer();
+});
+
+// Tactile : glissement vertical = changer de file, tap = envoyer.
+let depart = null, glisse = false;
+board.addEventListener("touchstart", e => {
+  const t = e.touches[0];
+  depart = {x: t.clientX, y: t.clientY}; glisse = false;
+}, {passive:true});
+board.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if(!depart) return;
+  const t = e.touches[0], dy = t.clientY - depart.y;
+  if(Math.abs(dy) < 22) return;
+  changerFile(dy > 0 ? 1 : -1);
+  glisse = true;
+  depart = {x: t.clientX, y: t.clientY};
+}, {passive:false});
+board.addEventListener("touchend", e => {
+  if(depart && !glisse) envoyer();
+  depart = null;
+}, {passive:true});
+board.addEventListener("touchcancel", () => { depart = null; }, {passive:true});
+
+function basculerPause(){
+  if(etat === "jeu"){ etat = "pause"; montrer("Guichet fermé cinq minutes", "Les files ne bougent pas. Elles n'oublient pas non plus.", "Rouvrir"); }
+  else if(etat === "pause"){ cacher(); etat = "jeu"; }
+}
+function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
+  titreEl.textContent = titre; texteEl.textContent = texte;
+  btnEl.textContent = bouton; ecran.hidden = false;
+}
+function cacher(){ ecran.hidden = true; }
+btnEl.addEventListener("click", () => {
+  if(etat === "pause"){ etat = "jeu"; cacher(); return; }
+  nouvellePartie();
+  etat = "jeu"; cacher();
+});
+
+let dernierMot = "";
+function log(txt){ dernierMot = txt; journal.ecrire(txt); majBarre(); }
+function majHud(){
+  hudServis.textContent = servis;
+  hudMediateur.textContent = reclamations + " / " + RECLAMATIONS_MAX;
+  hudHeure.textContent = (8 + heure()) + " h";
+  majBarre();
+}
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(servis + " servis · " + reclamations + "/" + RECLAMATIONS_MAX);
+  pleinEcran.message(dernierMot);
+}
+
+/* ---------- boucle ---------- */
+let dernier = performance.now();
+function boucle(now){
+  const dt = Math.min((now - dernier) / 1000, .05);
+  dernier = now;
+  if(etat === "jeu") maj(dt);
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
+  if(geste > 0) geste = Math.max(0, geste - dt);
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  for(let i = bulles.length - 1; i >= 0; i--){ bulles[i].y -= 28 * dt; bulles[i].vie -= dt; if(bulles[i].vie <= 0) bulles.splice(i, 1); }
+  dessiner();
+  requestAnimationFrame(boucle);
+}
+
+function maj(dt){
+  temps += dt;
+  prochain -= dt;
+  if(prochain <= 0){ arriver(); prochain = rythme().intervalle * (.75 + Math.random() * .5); }
+
+  // usagers
+  for(let i = 0; i < FILES; i++){
+    const f = files[i];
+    for(let k = f.length - 1; k >= 0; k--){
+      const u = f[k];
+      if(u.etat === "avance"){
+        // On ne double pas : chacun s'arrete derriere le precedent.
+        const devant = f[k - 1];
+        const limite = devant && devant.etat === "avance" ? devant.x + 34 : -Infinity;
+        u.x = Math.max(limite, u.x - u.v * dt);
+        if(u.x <= X_COMPTOIR) { f.splice(k, 1); return reclamer(i, "Un usager a atteint le bout du comptoir. Réclamation au médiateur."); }
+      } else if(u.etat === "repart"){
+        u.x += 260 * dt;
+        if(u.x > W + 30) f.splice(k, 1);
+      }
+    }
+  }
+
+  // reponses : elles glissent vers le fond, touchent le premier de la file
+  for(let i = reponses.length - 1; i >= 0; i--){
+    const r = reponses[i];
+    r.x += r.v * dt;
+    const f = files[r.file];
+    const cible = f.find(u => u.etat === "avance");
+    if(cible && r.x + 14 >= cible.x - 6){
+      reponses.splice(i, 1);
+      servir(r.file, cible);
+      continue;
+    }
+    if(r.x > W + 10){
+      reponses.splice(i, 1);
+      reclamer(r.file, "Réponse envoyée à personne. Le médiateur s'interroge.");
+      return;
+    }
+  }
+
+  // retours : ils reviennent vers le comptoir, a rattraper
+  for(let i = retours.length - 1; i >= 0; i--){
+    const r = retours[i];
+    r.attente -= dt;
+    if(r.attente > 0) continue;
+    r.x -= 190 * dt;
+    if(r.x <= X_COMPTOIR){
+      retours.splice(i, 1);
+      if(joueur.file === r.file){
+        points += 2;
+        flashs.push({file: r.file, t: .18, couleur: "#ffffff"});
+        bulles.push({x: X_COMPTOIR + 20, y: BANDEAU + r.file * FH + 30, t: "+2", vie: .8});
+        bip(760, .07, "triangle");
+        log(QUIPS_RETOUR[Math.floor(Math.random() * QUIPS_RETOUR.length)]);
+        majHud();
+      } else {
+        reclamer(r.file, "Le retour est tombé par terre : « sans réponse depuis trois semaines ».");
+        return;
+      }
+    }
+  }
+}
+
+function servir(i, u){
+  u.etat = "repart";
+  servis++; points += 1;
+  const avant = heure();
+  flashs.push({file: i, t: .16, couleur: COMPTOIRS[i].fond});
+  bulles.push({x: u.x, y: BANDEAU + i * FH + 26, t: "MERCI", vie: .7});
+  bip(700, .06);
+  // Un retour sur trois : « merci, mais ça ne repond pas a ma question ».
+  if(Math.random() < .34) retours.push({file: i, x: u.x + 10, attente: .7});
+  log(QUIPS_SERVI[Math.floor(Math.random() * QUIPS_SERVI.length)]);
+  majHud();
+  const apres = heure();
+  if(apres !== avant && QUIPS_HEURE[apres]){ log(QUIPS_HEURE[apres]); bip(660, .08, "triangle"); }
+}
+
+function reclamer(i, raison){
+  reclamations++;
+  secousse = .35;
+  flashs.push({file: i, t: .3, couleur: "#E1000F"});
+  bip(140, .25, "sawtooth");
+  log(raison);
+  majHud();
+  if(reclamations >= RECLAMATIONS_MAX) finir();
+}
+
+function finir(){
+  etat = "fin";
+  montrer("Le médiateur est saisi",
+    "Trois réclamations en une journée : le rapport annuel vous cite. " + servis + " usager" + (servis > 1 ? "s" : "") +
+    " servi" + (servis > 1 ? "s" : "") + ", " + points + " points.",
+    "Rouvrir demain");
+  tableau.fin(scoresEl, points, servis + " servis · " + (8 + heure()) + " h");
+  log("Guichets fermés. Le médiateur a un dossier à votre nom.");
+}
+
+/* ---------- dessin ---------- */
+// Enveloppe 8x6 : cadre X, papier B, rabat N.
+const ENVELOPPE = [
+  "XXXXXXXX",
+  "XNBBBBNX",
+  "XBNBBNBX",
+  "XBBNNBBX",
+  "XBBBBBBX",
+  "XXXXXXXX"];
+
+function dessiner(){
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 14;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, 28, "#000091", "#000082");
+
+  // comptoirs : une bande par file, le comptoir a gauche, le nom en filigrane
+  for(let i = 0; i < FILES; i++){
+    const y = BANDEAU + i * FH, c = COMPTOIRS[i];
+    ctx.fillStyle = i % 2 ? "rgba(0,0,0,.14)" : "rgba(0,0,0,.06)";
+    ctx.fillRect(0, y, W, FH);
+    ctx.fillStyle = "rgba(0,0,0,.35)";
+    ctx.fillRect(0, y + FH - 3, W, 3);
+    pix.biseau(ctx, 0, y + FH - 40, X_COMPTOIR, 30, 3, c.fond, false);
+    pix.texte(ctx, c.nom, X_COMPTOIR + 12, y + 10, 1.25, "rgba(255,255,255,.25)");
+    // flash
+    for(const fl of flashs){
+      if(fl.file !== i) continue;
+      ctx.globalAlpha = Math.min(1, fl.t / .3) * .6;
+      ctx.fillStyle = fl.couleur;
+      ctx.fillRect(0, y, W, FH);
+      ctx.globalAlpha = 1;
+    }
+    // usagers, du fond vers le comptoir
+    for(let k = files[i].length - 1; k >= 0; k--){
+      const u = files[i][k];
+      const px = u.x - 14, py = y + FH - 66;
+      ctx.fillStyle = "rgba(0,0,0,.28)"; ctx.fillRect(px + 3, py + 36, 22, 4);
+      pix.personne(ctx, px, py, 28, u.look);
+      if(k === 0 && u.etat === "avance"){
+        const lw = pix.largeur(u.plainte, 1) + 10;
+        pix.biseau(ctx, u.x - lw / 2, py - 16, lw, 12, 1, "#ffffff");
+        pix.texte(ctx, u.plainte, u.x, py - 13, 1, "#161616", "center");
+      }
+    }
+    // retours
+    for(const r of retours){
+      if(r.file !== i) continue;
+      pix.grille(ctx, ENVELOPPE, r.x - 12, y + FH - 46, 24, {X: "#9a9a9a", B: "#e0e0e0", N: "#3a3a3a"});
+      pix.texte(ctx, "?", r.x, y + FH - 62, 1.5, "#ffffff", "center");
+    }
+    // reponses
+    for(const r of reponses){
+      if(r.file !== i) continue;
+      pix.lueur(ctx, r.x + 12, y + FH - 37, 22, "#FFCA00", .35);
+      pix.grille(ctx, ENVELOPPE, r.x, y + FH - 46, 24, {X: "#FFCA00", B: "#fff8d6", N: "#8a6b00"});
+    }
+  }
+
+  // vous, derriere le comptoir de la file active
+  const jy = BANDEAU + joueur.file * FH + FH - 74;
+  pix.lueur(ctx, X_JOUEUR + 14, jy + 18, 34, "#FFCA00", .25);
+  pix.personne(ctx, X_JOUEUR - (geste > 0 ? 3 : 0), jy, 28, joueur.look);
+  ctx.fillStyle = "#FFCA00";
+  ctx.fillRect(0, BANDEAU + joueur.file * FH + 2, 4, FH - 5);
+
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // bandeau
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(0, 0, W, BANDEAU);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(0, BANDEAU - 3, W, 3);
+  pix.texte(ctx, "SERVIS " + servis + "  ·  " + points + " PTS", 14, 13, 2, "#FFCA00");
+  let ax = W - 14;
+  pix.texte(ctx, (8 + heure()) + " H", ax, 13, 2, "#c9c9ff", "right");
+  ax -= 60;
+  for(let i = 0; i < RECLAMATIONS_MAX; i++){
+    pix.biseau(ctx, ax - 16, 12, 14, 16, 2, i < reclamations ? "#E1000F" : "#3a3a8a", i >= reclamations);
+    ax -= 18;
+  }
+  pix.texte(ctx, "MÉDIATEUR", ax - 6, 15, 1.5, "#8f8fd8", "right");
+
+  // bulles
+  for(const b of bulles){
+    ctx.globalAlpha = Math.min(1, b.vie);
+    pix.texte(ctx, b.t, b.x, b.y, 1.5, "#ffffff", "center");
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+/* ---------- demarrage ---------- */
+resize();
+nouvellePartie();
+etat = "menu";
+requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

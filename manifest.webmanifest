@@ -1,0 +1,16 @@
+{
+  "name": "miweb games",
+  "short_name": "miweb games",
+  "description": "Petits jeux sur les coulisses d'un projet web.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0F1017",
+  "theme_color": "#000091",
+  "lang": "fr",
+  "icons": [
+    { "src": "/icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

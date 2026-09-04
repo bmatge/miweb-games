@@ -4,66 +4,87 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Snake — Constituez votre équipe web</title>
-<link rel="stylesheet" href="../assets/arcade.css?v=3">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icones/icone-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icones/icone-192.png">
+<meta name="theme-color" content="#000091">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="miweb games">
+<link rel="stylesheet" href="../assets/arcade.css?v=6">
 <style>
-  .equipe{margin-top:12px;background:#fff;border:1px solid var(--gris);padding:10px 12px}
-  .equipe h2{font-size:13px;margin:0 0 8px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#555}
+  .equipe{margin-top:14px}
+  .equipe h2{
+    font-family:var(--mono);font-size:10px;margin:0 0 8px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.12em;color:var(--sourd);
+  }
   .puces{display:flex;flex-wrap:wrap;gap:5px;min-height:26px}
   .puce{
-    font-size:11.5px;font-weight:600;color:#fff;padding:3px 8px;
-    border:1px solid #00000020;line-height:1.3;
+    font-size:11.5px;font-weight:600;color:#fff;padding:3px 8px;line-height:1.3;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.4),inset -1px -1px 0 rgba(0,0,0,.35);
   }
   .puce.clair{color:#161616}
-  .vide{font-size:12.5px;color:#777;font-style:italic}
+  .vide{font-size:12.5px;color:var(--sourd);font-style:italic}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <a class="retour" href="../">← Tous les jeux</a>
-  <h1>Snake — Constituez votre équipe web</h1>
-  <p class="chapo">Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus difficile à diriger. Quarante métiers du web à réunir, sans percuter les murs, votre propre équipe, ni la dette technique qui s'accumule.</p>
+<div class="wrap jeu">
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Snake <span class="sous">/ Constituez votre équipe web</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-equipe">0 / 40</b><span>équipe</span></div>
+      <div class="stat"><b id="hud-cible">—</b><span>à recruter</span></div>
+      <div class="stat"><b id="hud-record">0</b><span>record</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
+    </div>
+  </header>
 
-  <div class="hud">
-    <div class="stat"><b id="hud-equipe">0 / 40</b><span>équipe constituée</span></div>
-    <div class="stat"><b id="hud-cible">—</b><span>profil à recruter</span></div>
-    <div class="stat"><b id="hud-record">0</b><span>record</span></div>
-    <div class="outils">
-      <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
-      <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
-      <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+  <div class="scene" id="scene" style="--ratio:1.3929">
+    <div class="board" id="board">
+      <canvas id="jeu" width="780" height="560" aria-label="Aire de jeu du snake"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Prêt à recruter ?</h2>
+        <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison de l'appareil. Chaque profil recruté allonge l'équipe.</p>
+        <div class="scores-zone" id="scores"></div>
+        <button class="btn" id="ecran-btn">Constituer l'équipe</button>
+      </div>
     </div>
   </div>
 
-  <div class="board" id="board">
-    <canvas id="jeu" width="780" height="560" aria-label="Aire de jeu du snake"></canvas>
-    <div class="overlay" id="ecran">
-      <h2 id="ecran-titre">Prêt à recruter ?</h2>
-      <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison de l'appareil. Chaque profil recruté allonge l'équipe.</p>
-      <button class="btn" id="ecran-btn">Constituer l'équipe</button>
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Poste ouvert, fiche de poste rédigée.</em></div>
+
+  <section class="notice">
+    <p class="chapo">Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus difficile à diriger. <strong>Quarante métiers du web</strong> à réunir, sans percuter les murs, votre propre équipe, ni la dette technique qui s'accumule.</p>
+
+    <div class="equipe">
+      <h2>Équipe constituée</h2>
+      <div class="puces" id="puces"><span class="vide">Personne pour l'instant. Vous êtes seul sur le projet.</span></div>
     </div>
-  </div>
 
-  <div class="journal" id="journal"><span>Journal de recrutement</span>Poste ouvert, fiche de poste rédigée.</div>
+    <div class="legende">
+      <div><i style="background:#000091"></i>Technique</div>
+      <div><i style="background:#6a2ea0"></i>Design</div>
+      <div><i style="background:#FFCA00"></i>Produit et pilotage</div>
+      <div><i style="background:#18753C"></i>Contenu</div>
+      <div><i style="background:#E1000F"></i>Qualité et conformité</div>
+      <div><i style="background:#0078a8"></i>Data</div>
+      <div><i style="background:#6b6b6b"></i>Dette technique — mortelle</div>
+      <div><i style="background:#e9eaf2"></i>Cheveux blancs et cravate : c'est vous</div>
+    </div>
 
-  <div class="equipe">
-    <h2>Équipe constituée</h2>
-    <div class="puces" id="puces"><span class="vide">Personne pour l'instant. Vous êtes seul sur le projet.</span></div>
-  </div>
-
-  <div class="legende">
-    <div><i style="background:#000091"></i>Technique</div>
-    <div><i style="background:#6a2ea0"></i>Design</div>
-    <div><i style="background:#FFCA00"></i>Produit et pilotage</div>
-    <div><i style="background:#18753C"></i>Contenu</div>
-    <div><i style="background:#E1000F"></i>Qualité et conformité</div>
-    <div><i style="background:#0078a8"></i>Data</div>
-    <div><i style="background:#6b6b6b"></i>Dette technique — mortelle</div>
-  </div>
-
-  <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+    <p class="aide">Un bloc de <strong>dette technique</strong> apparaît tous les quatre recrutements : plus l'équipe grandit, moins le terrain est libre. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+  </section>
+  </aside>
 </div>
 
-<script src="../assets/arcade.js?v=3"></script>
+<script src="../assets/arcade.js?v=6"></script>
 <script>
 (() => {
 "use strict";
@@ -79,7 +100,12 @@ const ecran = document.getElementById("ecran");
 const titreEl = document.getElementById("ecran-titre");
 const texteEl = document.getElementById("ecran-texte");
 const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
 const journalEl = document.getElementById("journal");
+const journal = Arcade.journal(journalEl);
+const pix = Arcade.pix;
+const scoresEl = document.getElementById("scores");
+const tableau = Arcade.scores("snake");
 const pucesEl = document.getElementById("puces");
 const hudEquipe = document.getElementById("hud-equipe");
 const hudCible = document.getElementById("hud-cible");
@@ -146,6 +172,18 @@ let etat = "menu";           // menu | jeu | pause | fin | victoire
 let serpent = [], dir = {x:1, y:0}, filedir = [];
 let cible = null, dettes = [], recrutes = [];
 let vitesse = 7, accu = 0, son = true, record = 0;
+const palier = () => Math.min(4, Math.floor(recrutes.length / 10) + 1);
+const PALIERS = {
+  2: "Palier 2. Plus de dix personnes : les réunions durent, l'équipe accélère.",
+  3: "Palier 3. Vingt profils. La dette technique tombe tous les trois recrutements.",
+  4: "Palier 4. Trente. Vous dirigez une DSI, et ça se voit à la vitesse."
+};
+let flashs = [], secousse = 0;     // effets de rendu, sans incidence sur les regles
+let stagiaires = [];               // looks des deux segments de depart, sans nom
+// Chaque case est une personne vue de face, 8 pixels de large sur 10 :
+// chemise a la couleur de la famille, cheveux et peau tires a l'embauche.
+const PERS_L = CELL - 8, PERS_H = PERS_L * 1.25, PERS_X = 4, PERS_Y = (CELL - PERS_H) / 2;
+const CHEF = {chemise: "#FFCA00", cheveux: "#e9eaf2", peau: "#f2b8a0", cravate: "#161616"};
 
 try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
 hudRecord.textContent = record;
@@ -176,12 +214,14 @@ function resize(){
   const dpr = window.devicePixelRatio || 1;
   let cssW, cssH;
   if(enPlein){
-    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
-    const s = Math.min(window.innerWidth / W, dispoH / H);
+    const vp = Arcade.viewport();
+    const dispoH = vp.h - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(vp.w / W, dispoH / H);
     cssW = Math.floor(W * s); cssH = Math.floor(H * s);
     cv.style.width = cssW + "px";
   } else {
     cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
     cssW = board.clientWidth || W;
     cssH = cssW * H / W;
   }
@@ -192,7 +232,9 @@ function resize(){
   ctx.setTransform(s, 0, 0, s, 0, 0);
 }
 window.addEventListener("resize", resize);
+window.addEventListener("load", resize);   // les polices peuvent changer la hauteur de l'en-tete
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+if(window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(resize, 50));
 
 const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
   enPlein = on;
@@ -233,7 +275,7 @@ function poserCible(){
   // Le prochain metier suit l'ordre de la liste : la progression traverse
   // toutes les familles plutot que de tirer deux fois le meme profil.
   const m = METIERS[recrutes.length];
-  cible = {x: c.x, y: c.y, nom: m[0], famille: m[1], quip: m[2]};
+  cible = {x: c.x, y: c.y, nom: m[0], famille: m[1], quip: m[2], look: pix.lookAleatoire()};
   hudCible.textContent = m[0];
 }
 
@@ -250,6 +292,7 @@ function poserDette(){
 
 function nouvellePartie(){
   serpent = [{x:6, y:10}, {x:5, y:10}, {x:4, y:10}];
+  stagiaires = [pix.lookAleatoire(), pix.lookAleatoire()];
   dir = {x:1, y:0}; filedir = [];
   dettes = []; recrutes = []; cible = null;
   vitesse = 7; accu = 0;
@@ -272,6 +315,7 @@ const TOUCHES = {
   q:[-1,0], z:[0,-1]
 };
 window.addEventListener("keydown", e => {
+  if((e.target && e.target.tagName === "INPUT") || Arcade.scores.verrou()) return;   // saisie du pseudo
   const k = TOUCHES[e.key] || TOUCHES[e.key.toLowerCase()];
   if(k){ e.preventDefault(); pousser(k[0], k[1]); }
   if(e.key === "p" || e.key === "P") basculerPause();
@@ -315,6 +359,7 @@ function basculerPause(){
 }
 
 function montrer(titre, texte, bouton){
+  scoresEl.innerHTML = "";
   titreEl.textContent = titre; texteEl.textContent = texte;
   btnEl.textContent = bouton; ecran.hidden = false;
 }
@@ -329,7 +374,7 @@ btnEl.addEventListener("click", () => {
 let dernierMot = "Poste ouvert, fiche de poste rédigée.";
 function log(txt){
   dernierMot = txt;
-  journalEl.innerHTML = "<span>Journal de recrutement</span>" + txt;
+  journal.ecrire(txt);
   majBarre();
 }
 function majHud(){
@@ -366,6 +411,8 @@ function boucle(now){
     const pas = 1 / vitesse;
     while(accu >= pas){ accu -= pas; avancer(); if(etat !== "jeu") break; }
   }
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
   dessiner();
   requestAnimationFrame(boucle);
 }
@@ -397,10 +444,12 @@ function avancer(){
 
 function recruter(){
   const m = cible;
-  recrutes.push({nom: m.nom, famille: m.famille});
+  flashs.push({x: m.x, y: m.y, t: .22});
+  recrutes.push({nom: m.nom, famille: m.famille, look: cible.look});
   bip(560 + recrutes.length * 8, .07);
   log(m.quip);
-  vitesse = Math.min(16, 7 + recrutes.length * 0.25);
+  // Un quart de pas par recrue, plus un cran par palier.
+  vitesse = Math.min(19, 7 + recrutes.length * 0.25 + (palier() - 1) * 0.9);
 
   if(recrutes.length > record){
     record = recrutes.length;
@@ -408,7 +457,8 @@ function recruter(){
     try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
   }
 
-  if(recrutes.length % 4 === 0) poserDette();
+  if(recrutes.length % 10 === 0 && PALIERS[palier()]) log(PALIERS[palier()]);
+  if(recrutes.length % (palier() >= 3 ? 3 : 4) === 0) poserDette();
 
   majHud(); majPuces();
 
@@ -417,6 +467,7 @@ function recruter(){
     montrer("Équipe au complet",
       "Quarante métiers réunis sur un même projet. Cela n'arrive jamais, et pourtant vous venez de le faire.",
       "Reconstituer une équipe");
+    tableau.fin(scoresEl, recrutes.length, "équipe au complet");
     log("Tous les postes sont pourvus. Le budget de l'année prochaine sera réduit.");
     bip(880, .2, "triangle");
     return;
@@ -426,73 +477,73 @@ function recruter(){
 
 function perdre(raison){
   etat = "fin";
+  secousse = .4;
   bip(140, .25, "sawtooth");
   montrer("Projet interrompu",
     raison + " Équipe constituée : " + recrutes.length + " profil" +
       (recrutes.length > 1 ? "s" : "") + " sur " + METIERS.length + ".",
     "Relancer un recrutement");
+  tableau.fin(scoresEl, recrutes.length, "palier " + palier());
   log(raison);
 }
 
 /* ---------- dessin ---------- */
+// Tout le rendu passe par Arcade.pix : les regles du jeu ne savent rien de
+// la facture. Grille de 8 pour les cases (26 px sur le canvas logique,
+// 12 a 18 px sur un telephone), les sprites plus fins deviendraient une tache.
 function dessiner(){
-  ctx.fillStyle = "#000091";
-  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 12;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
 
-  // bandeau
+  // plateau : damier deux tons, cadre enfonce
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, CELL, "#000091", "#000082");
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // bandeau : compteur a gauche, poste a pourvoir a droite avec son picto
   ctx.fillStyle = "#00006e";
   ctx.fillRect(0, 0, W, BANDEAU);
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "700 15px 'Marianne',system-ui,sans-serif";
-  ctx.textAlign = "left";
-  ctx.fillText("Équipe : " + recrutes.length + " / " + METIERS.length, 14, BANDEAU / 2);
-  ctx.textAlign = "right";
-  ctx.font = "400 13px 'Marianne',system-ui,sans-serif";
-  ctx.fillStyle = "#c9c9ff";
-  ctx.fillText(cible ? "À recruter : " + cible.nom : "Tous les postes sont pourvus",
-    W - 14, BANDEAU / 2);
   ctx.fillStyle = "#E1000F";
   ctx.fillRect(0, BANDEAU - 3, W, 3);
-
-  // grille
-  ctx.strokeStyle = "rgba(255,255,255,.06)";
-  ctx.lineWidth = 1;
-  for(let x = 1; x < COLS; x++){
-    ctx.beginPath();
-    ctx.moveTo(x * CELL + .5, BANDEAU); ctx.lineTo(x * CELL + .5, H); ctx.stroke();
-  }
-  for(let y = 1; y < ROWS; y++){
-    ctx.beginPath();
-    ctx.moveTo(0, BANDEAU + y * CELL + .5); ctx.lineTo(W, BANDEAU + y * CELL + .5); ctx.stroke();
+  pix.texte(ctx, "ÉQUIPE " + recrutes.length + "/" + METIERS.length + "  ·  PALIER " + palier(), 14, 13, 2, "#FFCA00");
+  if(cible){
+    const f = FAMILLES[cible.famille];
+    const w = pix.texteAjuste(ctx, cible.nom, W - 14, 15, 360, 1.5, "#c9c9ff", "right");
+    pix.biseau(ctx, W - 14 - w - 28, 11, 18, 18, 2, f.fond);
+    pix.picto(ctx, cible.famille, W - 14 - w - 25, 14, 12, f.texte);
+    pix.texte(ctx, "À RECRUTER", W - 14 - w - 38, 15, 1.5, "#8f8fd8", "right");
+  } else {
+    pix.texte(ctx, "TOUS LES POSTES SONT POURVUS", W - 14, 15, 1.5, "#c9c9ff", "right");
   }
 
-  // dette technique
+  const u = CELL / 8;
+
+  // dette technique : bloc enfonce, croix sombre
   for(const d of dettes){
     const px = d.x * CELL, py = BANDEAU + d.y * CELL;
-    ctx.fillStyle = "#6b6b6b";
-    ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
-    ctx.strokeStyle = "#3d3d3d"; ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(px + 7, py + 7); ctx.lineTo(px + CELL - 7, py + CELL - 7);
-    ctx.moveTo(px + CELL - 7, py + 7); ctx.lineTo(px + 7, py + CELL - 7);
-    ctx.stroke();
+    pix.biseau(ctx, px + 2, py + 2, CELL - 4, CELL - 4, u, "#6b6b6b", true);
+    pix.picto(ctx, "dette", px + 6, py + 6, CELL - 12, "#2e2e2e");
   }
 
-  // cible
+  // cible : la couleur dit la famille, le pictogramme aussi ; le nom est
+  // dans le bandeau. La case respire et luit pour attirer l'oeil.
   if(cible){
     const f = FAMILLES[cible.famille];
     const px = cible.x * CELL, py = BANDEAU + cible.y * CELL;
     const pulse = 1 + Math.sin(performance.now() / 220) * .07;
-    const t = (CELL - 6) * pulse;
-    ctx.fillStyle = f.fond;
-    ctx.fillRect(px + (CELL - t) / 2, py + (CELL - t) / 2, t, t);
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5;
-    ctx.strokeRect(px + (CELL - t) / 2, py + (CELL - t) / 2, t, t);
-    ctx.fillStyle = f.texte;
-    ctx.font = "700 12px 'Marianne',system-ui,sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(cible.nom.charAt(0).toUpperCase(), px + CELL / 2, py + CELL / 2 + 1);
+    pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.4, f.fond === "#000091" ? "#ffffff" : f.fond, .28 * pulse);
+    // Le profil attend dans un cadre a coins, qui respire.
+    const e = 1 + Math.round(Math.sin(performance.now() / 220) * 1.5);
+    ctx.fillStyle = "#FFCA00";
+    const cx0 = px + 1 - e, cy0 = py + 1 - e, cl = CELL - 2 + 2 * e, ep = 2, lg = 7;
+    [[cx0, cy0, lg, ep], [cx0, cy0, ep, lg], [cx0 + cl - lg, cy0, lg, ep], [cx0 + cl - ep, cy0, ep, lg],
+     [cx0, cy0 + cl - ep, lg, ep], [cx0, cy0 + cl - lg, ep, lg], [cx0 + cl - lg, cy0 + cl - ep, lg, ep], [cx0 + cl - ep, cy0 + cl - lg, ep, lg]]
+      .forEach(r => ctx.fillRect(r[0], r[1], r[2], r[3]));
+    pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, {chemise: f.fond, cheveux: cible.look.cheveux, peau: cible.look.peau});
   }
 
   // equipe (serpent)
@@ -500,27 +551,36 @@ function dessiner(){
     const s = serpent[i];
     const px = s.x * CELL, py = BANDEAU + s.y * CELL;
     if(i === 0){
-      // Contour sombre : la famille « produit » est jaune elle aussi, la tete
-      // et un profil a recruter etaient sinon impossibles a distinguer.
-      ctx.fillStyle = "#FFCA00";
-      ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
-      ctx.strokeStyle = "#161616"; ctx.lineWidth = 2;
-      ctx.strokeRect(px + 2, py + 2, CELL - 4, CELL - 4);
-      ctx.fillStyle = "#161616";
-      const ox = dir.x * 3, oy = dir.y * 3;
-      ctx.beginPath(); ctx.arc(px + CELL/2 - 4 + ox, py + CELL/2 - 2 + oy, 2.2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(px + CELL/2 + 4 + ox, py + CELL/2 - 2 + oy, 2.2, 0, Math.PI*2); ctx.fill();
+      // La tete de file : cheveux blancs, chemise jaune, cravate, et le
+      // regard tourne vers le cap.
+      pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.3, "#FFCA00", .3);
+      pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, Object.assign({
+        regard: dir.x < 0 ? "gauche" : dir.x > 0 ? "droite" : null}, CHEF));
     } else {
-      // Le corps porte les couleurs des profils recrutes, du plus recent au
-      // plus ancien : l'equipe se lit dans le serpent lui-meme.
+      // La file porte les couleurs des profils recrutes, du plus recent au
+      // plus ancien : l'equipe se lit dans la file elle-meme. Les deux
+      // derniers sont les stagiaires du premier jour, en chemise blanche.
       const m = recrutes[recrutes.length - i];
       const f = m ? FAMILLES[m.famille] : null;
-      ctx.fillStyle = f ? f.fond : "#ffffff";
-      ctx.fillRect(px + 2, py + 2, CELL - 4, CELL - 4);
-      ctx.strokeStyle = "rgba(255,255,255,.35)"; ctx.lineWidth = 1;
-      ctx.strokeRect(px + 2.5, py + 2.5, CELL - 5, CELL - 5);
+      const look = m ? m.look : stagiaires[i - recrutes.length - 1] || stagiaires[0];
+      // Ombre au sol : la famille « technique » a la couleur du fond, sans
+      // elle ses membres flottaient dans le bleu.
+      ctx.fillStyle = "rgba(0,0,0,.28)";
+      ctx.fillRect(px + 5, py + CELL - 5, CELL - 10, 3);
+      pix.personne(ctx, px + PERS_X, py + PERS_Y, PERS_L, {chemise: f ? f.fond : "#ffffff", cheveux: look.cheveux, peau: look.peau});
     }
   }
+
+  // flash de recrutement : la case s'allume en blanc et s'eteint
+  for(const fl of flashs){
+    const k = fl.t / .22;
+    ctx.globalAlpha = k * .9;
+    ctx.fillStyle = "#ffffff";
+    const e = (1 - k) * 6;
+    ctx.fillRect(fl.x * CELL - e, BANDEAU + fl.y * CELL - e, CELL + 2 * e, CELL + 2 * e);
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 /* ---------- demarrage ---------- */

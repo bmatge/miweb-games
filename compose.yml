@@ -1,10 +1,16 @@
 # Contrat spawn (VibeLab) : pas de `ports:`, reseau externe `proxy`, labels
 # Traefik parametres par ${APP_NAME} / ${DOMAIN} — jamais de domaine en dur.
+#
+# Deux services : `web` (nginx, les pages) et `api` (node, le tableau des
+# scores partage, un fichier JSON sur le volume `scores`). nginx relaie
+# /api/ vers `api:3000` sur le reseau prive du projet ; seul `web` est
+# expose a Traefik.
 services:
   web:
     build: .
     restart: unless-stopped
-    networks: [proxy]
+    depends_on: [api]
+    networks: [proxy, default]
     labels:
       - traefik.enable=true
       - traefik.docker.network=proxy
@@ -12,6 +18,16 @@ services:
       - traefik.http.routers.${APP_NAME}.entrypoints=websecure
       - traefik.http.routers.${APP_NAME}.tls.certresolver=letsencrypt
       - traefik.http.services.${APP_NAME}.loadbalancer.server.port=80
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    volumes:
+      - scores:/data
+    networks: [default]
+
+volumes:
+  scores:
 
 networks:
   proxy:

@@ -11,50 +11,104 @@ En ligne : <https://miweb-games.lab.miweb.run>
 |---|---|---|
 | Casse-brique du chef de projet | `casse-brique/` | Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber en trois COPIL. |
 | Snake — Constituez votre équipe web | `snake/` | Vous démarrez seul. Quarante métiers du web à recruter ; chaque profil allonge l'équipe et la rend plus dure à diriger. |
+| La chaîne de validation | `validation/` | Un dossier à pousser du cadrage à la mise en ligne, à travers dix instances dont les obstacles circulent. Percuté, il repart du départ ; la fin de gestion, elle, n'attend pas. |
+| Les guichets | `guichets/` | Quatre comptoirs, une seule personne. Les usagers avancent, vous lancez des réponses qui glissent jusqu'à eux et rattrapez les retours. Un usager au bout du comptoir saisit le médiateur. |
+| La boîte de réception | `inbox/` | Les mails descendent en formation (TTU, répondre à tous, relances, transferts de vingt échanges). Vous répondez d'en bas derrière vos réponses d'absence. Boîte pleine, partie finie. |
+| Le support N1 du site | `support/` | Le premier niveau d'un site sous Drupal. Douze guichets, les tickets sortent la tête (bug CSS, accès Totem, BO muet). Taper avant la remontée en N2, sauf la demande du cabinet, qu'on escalade. |
 
 ## Structure
 
 ```
-index.html          page d'accueil : une card par jeu
-assets/arcade.css   coquille commune (HUD, plateau, overlay, plein écran)
-assets/arcade.js    plein écran et pilotage à l'inclinaison
+index.html          page d'accueil : enseigne animée, une card par jeu, tableau des scores
+assets/arcade.css   coquille des jeux (salle d'arcade sombre : en-tête, HUD, scène, overlay)
+assets/arcade.js    plein écran, inclinaison, cadrage et sprites pixel (Arcade.pix)
 casse-brique/       jeu 1
 snake/              jeu 2
+validation/         jeu 3 (canvas 960×560, proche du 16/9)
+support/            jeu 4 (canvas 800×490)
+guichets/           jeu 5 (canvas 800×490)
+inbox/              jeu 6 (canvas 800×490)
 ```
 
-Chaque jeu reste autonome : son moteur vit dans son `index.html`. Seuls la coquille visuelle
-et les deux comportements transverses (plein écran, inclinaison) sont mutualisés.
+Chaque jeu reste autonome : son moteur vit dans son `index.html`. Sont mutualisés la coquille
+visuelle, les sprites, et trois comportements transverses (plein écran, inclinaison, cadrage).
+L'accueil partage la même salle d'arcade : une enseigne dessinée au canvas (titre en police pixel
+et mode attente façon borne, figé si l'utilisateur préfère moins d'animation), une card par jeu
+avec sa vignette dessinée par les mêmes sprites et le record partagé, puis le tableau des scores.
 
-### Plein écran
+## Direction artistique
 
-`Arcade.plein(el, bouton, onChange)` tente l'API native, et retombe sur une classe CSS
-`position:fixed; inset:0` quand elle est indisponible — Safari iOS ne l'expose que sur les
-éléments `<video>`. Les deux jeux recalculent alors leur canvas pour tenir dans **les deux**
-dimensions : en paysage sur mobile, c'est la hauteur qui contraint.
+Les jeux sont en **pixel art dessiné au canvas** : aucune image, aucune police externe, tout
+passe par `fillRect`. `Arcade.pix` expose les primitives partagées :
 
-La classe `.plein` est posée dans les **deux** modes, natif compris : elle porte la mise en
-page plein écran *et* l'affichage de la barre de service. Cette barre (score, dernière phrase
-du journal, bouton « Quitter ») est le seul moyen de sortir au doigt — il n'y a pas d'Échap
-sur mobile, et le repli CSS n'ouvre pas la sortie native du navigateur.
+- `grille(ctx, lignes, x, y, taille, palette)` — un sprite décrit en tableau de chaînes, une
+  lettre par couleur, `.` transparent. Les pixels contigus d'une même couleur sont fusionnés en
+  un seul rectangle, et chaque rectangle déborde d'une fraction sur son voisin : aux échelles
+  non entières, le fond transparaissait sinon en fines coutures.
+- `biseau(ctx, x, y, w, h, u, fond, creux)` — boîte à relief arcade, clair en haut/gauche,
+  sombre en bas/droite (`creux` inverse, pour les socles).
+- `picto(ctx, cle, …)` — six pictogrammes de famille en grille de **8×8** (tech, design,
+  produit, contenu, qualité, data) plus la dette technique.
+- `personne(ctx, x, y, taille, look)` — un collègue vu de face, 8×10, chemise, cheveux, peau et
+  cravate paramétrables, regard à gauche ou à droite. C'est la file du snake : la tête de file a les
+  cheveux blancs et une cravate, chaque recrue tire son look à l'embauche (`lookAleatoire`).
+- `tete(ctx, x, y, taille, dir, langue)` — l'ancienne tête de serpent 8×8, conservée.
+- `agent(ctx, …)` (14×14, chemise paramétrable) et `balle(ctx, cx, cy, r)` (8×8).
 
-L'appel renvoie `{basculer, actif, stat, message}` : chaque jeu alimente `stat()` et
-`message()` depuis ses propres fonctions de mise à jour.
+- `texte(ctx, txt, x, y, u, couleur, align)` — police pixel 5×7 maison (majuscules, chiffres,
+  ponctuation, accents sur une rangée au-dessus). `texteAjuste` réduit `u` pour tenir dans une
+  largeur : c'est ce qui écrit les étiquettes de briques, les bandeaux et les bulles.
+- `damier`, `cadre`, `lueur` — le plateau : fond à deux tons, cadre enfoncé, halo radial (le
+  seul rendu non pixel, réservé à la balle, à la tête du serpent et aux cibles).
 
-### Inclinaison
+La grille de 8 pour les cases n'est pas un choix esthétique mais de lisibilité : une case du
+snake fait 26 px sur le canvas logique, 12 à 18 px sur un téléphone. À cette taille, un sprite
+de 16 devient une tache. `imageSmoothingEnabled` ne joue pas ici, il ne concerne que
+`drawImage`.
 
-`Arcade.inclinaison(bouton, onTilt)` normalise `gamma`/`beta` selon l'orientation de l'écran.
-iOS 13+ exige `DeviceOrientationEvent.requestPermission()` déclenché par un geste utilisateur,
-d'où le bouton. Sur les appareils sans capteur, le bouton reste masqué : il n'apparaît qu'après
-réception d'un événement porteur de valeurs.
+Les impacts sont soulignés par deux effets purement visuels, tenus hors des règles : un
+**flash** blanc qui s'étend puis s'éteint (brique cassée, profil recruté) et une **secousse**
+du plateau (`ctx.translate` aléatoire décroissant : casse, socle heurté, balle perdue, fin de
+partie). Le fond est peint plus large que le canvas pour que la secousse ne découvre pas de bord.
 
-Le callback reçoit `{gamma, beta, dGamma, dBeta}`. Les deux derniers sont **relatifs à la
-position de départ**, capturée à l'activation : un téléphone tenu en main repose autour de
-`beta = 40` à `70°`, jamais 0. Comparer les valeurs brutes faisait gagner l'axe vertical en
-permanence et rendait le snake indirigeable.
+Le fond bleu `#000091` et les couleurs de familles sont conservés : c'est l'identité des
+plateaux. La coquille autour, elle, ne suit plus le DSFR — palette sombre, monospace système
+pour les compteurs, accueil compris.
 
-- **Casse-brique** : `gamma` brut, l'angle donnant une position absolue de la barre — pas une
-  vitesse. L'axe horizontal repose naturellement autour de 0, l'étalonnage n'y sert à rien.
-- **Snake** : `dGamma`/`dBeta`, axe dominant seul, zone neutre de 12°.
+## Ligne de flottaison et deux mises en page
+
+Le plateau doit tenir dans la hauteur de la fenêtre, sur desktop comme en paysage sur mobile.
+Les canvas sont en 4/3 et les écrans en 16/9 : deux modes, choisis par le CSS (`--mode` sur
+`.jeu`) et lus par `Arcade.cadrer()`, qui pose la largeur de la scène en JS à chaque `resize`.
+
+- **`lateral`** (`min-width:760px` et `min-aspect-ratio:4/3`) : le plateau prend la hauteur à
+  gauche ; la colonne de droite (`clamp(240px, 26vw, 320px)`) porte titre, compteurs, outils,
+  journal avec ses quatre dernières phrases, puis la notice. C'est le mode desktop et paysage
+  mobile.
+- **`pile`** (portrait, écrans étroits) : en-tête au-dessus, plateau, journal d'une ligne,
+  notice sous la ligne de flottaison. La largeur est bornée par la hauteur restante fois le
+  ratio du canvas.
+
+La mesure est en JS et non en CSS parce que l'en-tête se replie selon la largeur et que la
+colonne est en `clamp()` : une constante ne suivait pas. Le journal est géré par
+`Arcade.journal(el)`, qui garde l'historique dans un `.anciens` masqué en mode `pile`.
+
+## Paliers et tableau des scores
+
+Chaque jeu accélère avec la progression, et le dit dans le bandeau et le journal :
+
+- **Casse-brique** : trois lots, puis le marché est renouvelé (« cycle 2 ») avec les mêmes murs, un COPIL de plus et une balle 12 % plus rapide à chaque cycle. Plus de fin par victoire, le score est la charge en jours-homme.
+- **Snake** : un palier tous les dix profils. La vitesse gagne un cran par palier, la dette technique tombe tous les trois recrutements à partir du palier 3.
+- **Validation** : un exercice tous les trois dossiers, 6 % par dossier et 12 % de plus par exercice.
+- **Guichets** : une heure tous les huit usagers servis, cadence et vitesse de marche en hausse.
+- **Boîte de réception** : chaque vague repart plus bas et 15 % plus vite ; la formation accélère à mesure qu'elle se vide, les TTU encore plus.
+- **Support** : trois phases de journée (matin, après-midi, fin de journée), chacune plus nerveuse, avec plus de demandes du cabinet le soir. Chemise et bulle sont tirées au hasard : la couleur ne dit rien du ticket, seule l'étiquette compte.
+
+Le tableau des scores est **local au navigateur** (`Arcade.scores(cle)`, dix entrées par jeu dans le
+`localStorage`) : le site reste statique, rien n'est envoyé. En fin de partie, si le score entre au
+tableau, l'overlay demande un pseudo, pré-rempli avec le dernier utilisé et modifiable ; il est aussi
+modifiable depuis l'accueil, qui affiche les cinq meilleurs de chaque jeu. Après l'inscription, un
+verrou de 900 ms empêche la touche Entrée qui a validé le formulaire de relancer une partie.
 
 ## Tactile
 
