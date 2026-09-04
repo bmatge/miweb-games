@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Casse-brique du chef de projet</title>
+<link rel="stylesheet" href="../assets/arcade.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="retour" href="../">← Tous les jeux</a>
+  <h1>Casse-brique du chef de projet</h1>
+  <p class="chapo">Vous êtes la barre. Le projet est la balle. Devant vous, le mur habituel : référentiels, obligations, incidents et instances. Trois COPIL pour tout faire tomber.</p>
+
+  <div class="hud">
+    <div class="stat"><b id="hud-copil">3</b><span>COPIL restants</span></div>
+    <div class="stat"><b id="hud-charge">0</b><span>jours-homme gagnés</span></div>
+    <div class="stat"><b id="hud-lot">1 / 3</b><span>lot en cours</span></div>
+    <div class="outils">
+      <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
+      <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+      <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+    </div>
+  </div>
+
+  <div class="board" id="board">
+    <canvas id="jeu" width="800" height="560" aria-label="Aire de jeu du casse-brique"></canvas>
+    <div class="overlay" id="ecran">
+      <h2 id="ecran-titre">Prêt pour le lancement ?</h2>
+      <p id="ecran-texte">Déplacez le chef de projet à la souris, au doigt ou avec les flèches. Espace ou clic pour lancer la balle.</p>
+      <button class="btn" id="ecran-btn">Lancer le projet</button>
+    </div>
+  </div>
+
+  <div class="journal" id="journal"><span>Journal de projet</span>En attente du feu vert.</div>
+
+  <div class="legende">
+    <div><i style="background:#fff"></i>Référentiels et normes — deux passages nécessaires</div>
+    <div><i style="background:#E1000F"></i>Incidents techniques</div>
+    <div><i style="background:#FFCA00"></i>Process et instances</div>
+    <div><i style="background:#7d7d7d"></i>Socle réglementaire — incassable</div>
+  </div>
+
+  <p class="aide">Bonus qui tombent : <code>€</code> rallonge budgétaire, <code>+</code> renfort d'équipe, <code>≡</code> lotissement (trois balles), <code>!</code> réunion imprévue (malus). <code>P</code> met en pause.</p>
+</div>
+
+<script src="../assets/arcade.js"></script>
+<script>
+(() => {
+"use strict";
+
+const W = 800, H = 560;
+const cv = document.getElementById("jeu");
+const ctx = cv.getContext("2d");
+const ecran = document.getElementById("ecran");
+const titreEl = document.getElementById("ecran-titre");
+const texteEl = document.getElementById("ecran-texte");
+const btnEl = document.getElementById("ecran-btn");
+const journalEl = document.getElementById("journal");
+const hudCopil = document.getElementById("hud-copil");
+const hudCharge = document.getElementById("hud-charge");
+const hudLot = document.getElementById("hud-lot");
+const btnSon = document.getElementById("btn-son");
+const board = document.getElementById("board");
+
+/* ---------- rendu adaptatif ---------- */
+let enPlein = false;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  let cssW, cssH;
+  if(enPlein){
+    // Tenir dans les deux dimensions, pas seulement en largeur : en paysage
+    // sur mobile c'est la hauteur qui contraint.
+    const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+    cssW = Math.floor(W * s); cssH = Math.floor(H * s);
+    cv.style.width = cssW + "px";
+  } else {
+    cv.style.width = "";
+    cssW = board.clientWidth || W;
+    cssH = cssW * H / W;
+  }
+  cv.style.height = cssH + "px";
+  cv.width = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+  const s = (cssW / W) * dpr;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+
+Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+  enPlein = on;
+  setTimeout(resize, 60);
+});
+
+// Inclinaison : gamma pilote la barre en absolu — l'angle donne une position
+// sur le plateau, pas une vitesse, ce qui reste previsible manette en main.
+Arcade.inclinaison(document.getElementById("btn-inclinaison"), ({gamma}) => {
+  if(etat !== "jeu") return;
+  const MAX = 26;                                  // degres pour aller bord a bord
+  const g = Math.max(-MAX, Math.min(MAX, gamma));
+  barre.cible = W / 2 + (g / MAX) * (W / 2);
+});
+
+/* ---------- contenu ---------- */
+const TYPES = {
+  norme:    {fond:"#ffffff", texte:"#000091", pv:2, pts:60},
+  technique:{fond:"#E1000F", texte:"#ffffff", pv:1, pts:30},
+  process:  {fond:"#FFCA00", texte:"#161616", pv:1, pts:20},
+  socle:    {fond:"#7d7d7d", texte:"#ffffff", pv:Infinity, pts:0}
+};
+
+const CATALOGUE = {
+  "RGAA":"norme","DSFR":"norme","RGESN":"norme","PSSI":"norme","RGPD":"norme",
+  "ANSSI":"norme","RGI":"norme","WCAG":"norme","Éco-conc.":"norme",
+  "Bug":"technique","Cache":"technique","DNS":"technique","Infra":"technique",
+  "Certif SSL":"technique","Prod":"technique","Régression":"technique",
+  "Migration":"technique","Sauvegarde":"technique","Timeout":"technique",
+  "Recette":"process","COPIL":"process","Marché":"process","Ticket":"process",
+  "Arbitrage":"process","Cadrage":"process","VABF":"process","Comitologie":"process",
+  "Homologation":"process","Reporting":"process",
+  "Décret":"socle","Circulaire":"socle"
+};
+
+const QUIPS = {
+  "RGAA":"Taux de conformité en hausse. On ne le criera pas trop fort.",
+  "DSFR":"Composant enfin conforme, sans surcharge CSS.",
+  "RGESN":"Une page allégée de 400 ko. Le climat vous remercie.",
+  "PSSI":"Dérogation obtenue, valable six mois.",
+  "RGPD":"Registre à jour. Le DPD respire.",
+  "ANSSI":"Audit passé, deux réserves mineures.",
+  "Bug":"Corrigé en prod un vendredi. Assumé.",
+  "Cache":"Purge du cache. Miracle instantané.",
+  "DNS":"C'était le DNS. C'est toujours le DNS.",
+  "Infra":"L'infra répond enfin au téléphone.",
+  "Certif SSL":"Renouvelé douze heures avant l'expiration.",
+  "Prod":"Mise en production sans rollback. Historique.",
+  "Régression":"Le correctif d'hier a tenu la nuit.",
+  "Migration":"Bascule terminée, contenus intacts.",
+  "Sauvegarde":"Restauration testée pour de vrai.",
+  "Timeout":"Requête optimisée, 8 s de moins.",
+  "Recette":"Recette signée. Sans réserve bloquante.",
+  "COPIL":"Décision prise en séance. Notée au relevé.",
+  "Marché":"Bon de commande notifié avant la fin de gestion.",
+  "Ticket":"Ticket clos, pas rouvert.",
+  "Arbitrage":"Arbitré en votre faveur. Savourez.",
+  "Cadrage":"Périmètre écrit noir sur blanc.",
+  "VABF":"Vérification d'aptitude prononcée.",
+  "Comitologie":"Une instance supprimée. Un exploit.",
+  "Homologation":"Homologation signée pour trois ans.",
+  "Reporting":"Indicateurs remontés dans les temps."
+};
+
+const NIVEAUX = [
+  {
+    nom:"Lot 1 — Cadrage",
+    lignes:[
+      ["Cadrage","Cadrage","Marché","Marché","Ticket","Ticket","Reporting","Reporting"],
+      ["DSFR","RGAA","Bug","Cache","DNS","Infra","COPIL","Recette"],
+      ["","Bug","Timeout","Ticket","Recette","Cache","Bug",""],
+      ["","","COPIL","Arbitrage","Arbitrage","COPIL","",""]
+    ]
+  },
+  {
+    nom:"Lot 2 — Conformité",
+    lignes:[
+      ["RGAA","DSFR","RGESN","PSSI","RGPD","ANSSI","RGI","WCAG"],
+      ["Homologation","","Éco-conc.","RGAA","DSFR","Éco-conc.","","Homologation"],
+      ["Migration","Sauvegarde","Bug","Certif SSL","Certif SSL","Bug","Régression","Migration"],
+      ["","VABF","VABF","Recette","Recette","VABF","VABF",""],
+      ["","","Prod","Prod","Prod","Prod","",""]
+    ]
+  },
+  {
+    nom:"Lot 3 — Mise en production",
+    lignes:[
+      ["Décret","PSSI","RGAA","DSFR","RGESN","RGPD","ANSSI","Circulaire"],
+      ["Comitologie","Arbitrage","Homologation","Recette","Recette","Homologation","Arbitrage","Comitologie"],
+      ["Bug","Régression","DNS","Cache","Timeout","Infra","Certif SSL","Bug"],
+      ["Décret","","Migration","Prod","Prod","Migration","","Circulaire"],
+      ["","Sauvegarde","Bug","Ticket","Ticket","Bug","Sauvegarde",""]
+    ]
+  }
+];
+
+/* ---------- état ---------- */
+const COLS = 8, BW = 92, BH = 28, GAPX = 8, GAPY = 7, X0 = 8, Y0 = 66;
+
+let etat = "menu";          // menu | jeu | pause | lot | fin | victoire
+let niveau = 0, copil = 3, charge = 0;
+let briques = [], balles = [], bonus = [], eclats = [], bulles = [];
+let collee = true, son = true;
+
+const barre = {x: W/2 - 55, y: 512, w: 110, h: 14, cible: W/2, vitesseTouche: 0};
+let renfortT = 0, malusT = 0;
+
+/* ---------- audio ---------- */
+let ac = null;
+function bip(freq, dur, type){
+  if(!son) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+btnSon.addEventListener("click", () => {
+  son = !son;
+  btnSon.textContent = "Son : " + (son ? "activé" : "coupé");
+  btnSon.setAttribute("aria-pressed", String(son));
+});
+
+/* ---------- construction ---------- */
+function chargerNiveau(n){
+  briques = []; bonus = []; eclats = []; bulles = [];
+  const lignes = NIVEAUX[n].lignes;
+  lignes.forEach((ligne, r) => {
+    ligne.forEach((label, c) => {
+      if(!label) return;
+      const type = CATALOGUE[label] || "process";
+      const t = TYPES[type];
+      briques.push({
+        x: X0 + c * (BW + GAPX),
+        y: Y0 + r * (BH + GAPY),
+        w: BW, h: BH,
+        label, type, pv: t.pv, pvMax: t.pv, vivante: true
+      });
+    });
+  });
+  resetBalle();
+  hudLot.textContent = (n + 1) + " / " + NIVEAUX.length;
+}
+
+function resetBalle(){
+  collee = true;
+  renfortT = 0; malusT = 0;
+  barre.w = 110;
+  barre.x = W/2 - barre.w/2;
+  barre.cible = W/2;
+  const v = 330 + niveau * 26;
+  balles = [{x: W/2, y: barre.y - 9, r: 7, vx: v * 0.55, vy: -v * 0.83, v}];
+}
+
+function restantes(){
+  return briques.filter(b => b.vivante && b.type !== "socle").length;
+}
+
+/* ---------- interactions ---------- */
+function versLogique(clientX){
+  const r = cv.getBoundingClientRect();
+  return (clientX - r.left) / r.width * W;
+}
+function pointer(e){
+  const x = e.touches ? e.touches[0].clientX : e.clientX;
+  barre.cible = versLogique(x);
+  if(e.touches) e.preventDefault();
+}
+cv.addEventListener("mousemove", pointer);
+cv.addEventListener("touchstart", e => {pointer(e); lancer();}, {passive:false});
+cv.addEventListener("touchmove", pointer, {passive:false});
+cv.addEventListener("mousedown", lancer);
+
+const touches = {};
+window.addEventListener("keydown", e => {
+  touches[e.key] = true;
+  if(e.key === " "){ e.preventDefault(); lancer(); }
+  if(e.key === "p" || e.key === "P") basculerPause();
+});
+window.addEventListener("keyup", e => { touches[e.key] = false; });
+
+function lancer(){
+  if(etat === "jeu" && collee){ collee = false; bip(520, .06); }
+}
+function basculerPause(){
+  if(etat === "jeu"){ etat = "pause"; montrer("Projet en pause", "Rien ne bouge, et pourtant les délais courent.", "Reprendre"); }
+  else if(etat === "pause"){ cacher(); etat = "jeu"; }
+}
+
+function montrer(titre, texte, bouton){
+  titreEl.textContent = titre;
+  texteEl.textContent = texte;
+  btnEl.textContent = bouton;
+  ecran.hidden = false;
+}
+function cacher(){ ecran.hidden = true; }
+
+btnEl.addEventListener("click", () => {
+  if(etat === "menu" || etat === "fin" || etat === "victoire"){
+    niveau = 0; copil = 3; charge = 0;
+    majHud(); chargerNiveau(0);
+    log("Lot 1 lancé. Périmètre validé, ça peut commencer.");
+    etat = "jeu"; cacher();
+  } else if(etat === "lot"){
+    chargerNiveau(niveau);
+    etat = "jeu"; cacher();
+  } else if(etat === "pause"){
+    etat = "jeu"; cacher();
+  }
+});
+
+function log(txt){
+  journalEl.innerHTML = "<span>Journal de projet</span>" + txt;
+}
+function majHud(){
+  hudCopil.textContent = copil;
+  hudCharge.textContent = charge;
+}
+
+/* ---------- effets ---------- */
+function eclater(b, couleur){
+  for(let i = 0; i < 9; i++){
+    eclats.push({
+      x: b.x + b.w/2, y: b.y + b.h/2,
+      vx: (Math.random()-.5) * 200, vy: (Math.random()-.7) * 200,
+      vie: .55, c: couleur, s: 2 + Math.random()*3
+    });
+  }
+}
+function bulle(texte, x, y){
+  bulles.push({t: texte, x, y, vie: 1.1});
+}
+
+const TYPES_BONUS = [
+  {c:"€", couleur:"#18753C", nom:"Rallonge budgétaire"},
+  {c:"+", couleur:"#000091", nom:"Renfort d'équipe"},
+  {c:"≡", couleur:"#000091", nom:"Lotissement"},
+  {c:"!", couleur:"#E1000F", nom:"Réunion imprévue"}
+];
+function larguerBonus(b){
+  const r = Math.random();
+  let i;
+  if(r < .35) i = 1; else if(r < .62) i = 2; else if(r < .82) i = 3; else i = 0;
+  bonus.push({x: b.x + b.w/2, y: b.y + b.h/2, vy: 130, type: i});
+}
+
+/* ---------- boucle ---------- */
+let dernier = performance.now();
+function boucle(now){
+  const dt = Math.min((now - dernier) / 1000, .033);
+  dernier = now;
+  if(etat === "jeu") maj(dt);
+  dessiner();
+  requestAnimationFrame(boucle);
+}
+
+function maj(dt){
+  // barre
+  if(touches["ArrowLeft"]) barre.cible -= 620 * dt;
+  if(touches["ArrowRight"]) barre.cible += 620 * dt;
+  const cible = Math.max(barre.w/2, Math.min(W - barre.w/2, barre.cible));
+  barre.x += ((cible - barre.w/2) - barre.x) * Math.min(1, dt * 18);
+  barre.x = Math.max(0, Math.min(W - barre.w, barre.x));
+
+  if(renfortT > 0){ renfortT -= dt; if(renfortT <= 0) barre.w = 110; }
+  if(malusT > 0){ malusT -= dt; if(malusT <= 0) barre.w = 110; }
+
+  // balles
+  for(let i = balles.length - 1; i >= 0; i--){
+    const b = balles[i];
+    if(collee && i === 0){
+      b.x = barre.x + barre.w/2; b.y = barre.y - b.r - 2;
+      continue;
+    }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+
+    if(b.x - b.r < 0){ b.x = b.r; b.vx = Math.abs(b.vx); bip(300,.03); }
+    if(b.x + b.r > W){ b.x = W - b.r; b.vx = -Math.abs(b.vx); bip(300,.03); }
+    if(b.y - b.r < 44){ b.y = 44 + b.r; b.vy = Math.abs(b.vy); bip(300,.03); }
+
+    // barre
+    if(b.vy > 0 && b.y + b.r >= barre.y && b.y - b.r <= barre.y + barre.h &&
+       b.x >= barre.x - 4 && b.x <= barre.x + barre.w + 4){
+      b.y = barre.y - b.r;
+      const rel = (b.x - (barre.x + barre.w/2)) / (barre.w/2);
+      const angle = rel * 1.05;
+      const v = Math.hypot(b.vx, b.vy);
+      b.vx = Math.sin(angle) * v;
+      b.vy = -Math.abs(Math.cos(angle) * v);
+      bip(440, .05);
+    }
+
+    if(b.y - b.r > H){
+      balles.splice(i, 1);
+      continue;
+    }
+
+    // briques
+    for(const br of briques){
+      if(!br.vivante) continue;
+      const px = Math.max(br.x, Math.min(b.x, br.x + br.w));
+      const py = Math.max(br.y, Math.min(b.y, br.y + br.h));
+      const dx = b.x - px, dy = b.y - py;
+      if(dx*dx + dy*dy > b.r*b.r) continue;
+
+      const cx = br.x + br.w/2, cy = br.y + br.h/2;
+      const ox = (br.w/2 + b.r) - Math.abs(b.x - cx);
+      const oy = (br.h/2 + b.r) - Math.abs(b.y - cy);
+      if(ox < oy){
+        b.vx = b.x < cx ? -Math.abs(b.vx) : Math.abs(b.vx);
+        b.x += b.x < cx ? -ox : ox;
+      } else {
+        b.vy = b.y < cy ? -Math.abs(b.vy) : Math.abs(b.vy);
+        b.y += b.y < cy ? -oy : oy;
+      }
+      toucher(br);
+      break;
+    }
+  }
+
+  if(balles.length === 0) perdreCopil();
+
+  // bonus
+  for(let i = bonus.length - 1; i >= 0; i--){
+    const bo = bonus[i];
+    bo.y += bo.vy * dt;
+    if(bo.y > H){ bonus.splice(i,1); continue; }
+    if(bo.y > barre.y - 8 && bo.y < barre.y + barre.h + 8 &&
+       bo.x > barre.x - 12 && bo.x < barre.x + barre.w + 12){
+      appliquerBonus(bo.type);
+      bonus.splice(i,1);
+    }
+  }
+
+  // effets
+  for(let i = eclats.length - 1; i >= 0; i--){
+    const p = eclats[i];
+    p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 480*dt; p.vie -= dt;
+    if(p.vie <= 0) eclats.splice(i,1);
+  }
+  for(let i = bulles.length - 1; i >= 0; i--){
+    bulles[i].y -= 26*dt; bulles[i].vie -= dt;
+    if(bulles[i].vie <= 0) bulles.splice(i,1);
+  }
+
+  if(restantes() === 0) lotTermine();
+}
+
+function toucher(br){
+  if(br.type === "socle"){
+    bip(120, .07, "sawtooth");
+    bulle("Non négociable", br.x + br.w/2, br.y);
+    return;
+  }
+  br.pv--;
+  if(br.pv > 0){
+    bip(260, .04);
+    bulle("Encore un passage", br.x + br.w/2, br.y);
+    return;
+  }
+  br.vivante = false;
+  charge += TYPES[br.type].pts;
+  majHud();
+  eclater(br, TYPES[br.type].fond);
+  bip(620, .06);
+  const q = QUIPS[br.label];
+  if(q) log(q);
+  if(Math.random() < .16) larguerBonus(br);
+}
+
+function appliquerBonus(i){
+  const t = TYPES_BONUS[i];
+  bip(760, .09, "triangle");
+  if(i === 0){ copil++; majHud(); log("Rallonge budgétaire obtenue : un COPIL de plus."); }
+  if(i === 1){ barre.w = 165; renfortT = 14; malusT = 0; log("Renfort d'équipe pour 14 secondes. Profitez-en."); }
+  if(i === 2){
+    const src = balles[0];
+    if(src){
+      for(let k = 0; k < 2; k++){
+        const a = (Math.random() - .5) * 1.2;
+        balles.push({x: src.x, y: src.y, r: 7, v: src.v,
+          vx: Math.sin(a) * src.v, vy: -Math.abs(Math.cos(a) * src.v)});
+      }
+      collee = false;
+    }
+    log("Lotissement : trois chantiers en parallèle.");
+  }
+  if(i === 3){ barre.w = 72; malusT = 11; renfortT = 0; log("Réunion imprévue : la moitié de l'équipe est en séance."); }
+}
+
+function perdreCopil(){
+  copil--;
+  majHud();
+  if(copil <= 0){
+    etat = "fin";
+    montrer("Projet arrêté",
+      "Le dernier COPIL a tranché : arrêt du chantier. Charge capitalisée : " + charge + " jours-homme.",
+      "Relancer un nouveau projet");
+    log("Fin de gestion. Les briques restantes passeront en 2027.");
+  } else {
+    log("Balle perdue. Recadrage en séance, et on repart.");
+    resetBalle();
+  }
+}
+
+function lotTermine(){
+  niveau++;
+  if(niveau >= NIVEAUX.length){
+    etat = "victoire";
+    montrer("Mise en production réussie",
+      "Site conforme, homologué, en ligne. Charge totale : " + charge + " jours-homme. Le prochain référentiel sort la semaine prochaine.",
+      "Repartir sur un nouveau projet");
+    log("Tout est tombé. Personne ne s'en apercevra, c'est le signe que ça marche.");
+  } else {
+    etat = "lot";
+    montrer(NIVEAUX[niveau].nom,
+      "Lot précédent livré. Le mur suivant est déjà monté.",
+      "Attaquer le lot " + (niveau + 1));
+  }
+}
+
+/* ---------- dessin ---------- */
+function dessiner(){
+  ctx.fillStyle = "#000091";
+  ctx.fillRect(0, 0, W, H);
+
+  // bandeau
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(0, 0, W, 40);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 15px 'Marianne',system-ui,sans-serif";
+  ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  ctx.fillText(NIVEAUX[Math.min(niveau, NIVEAUX.length-1)].nom, 14, 20);
+  ctx.textAlign = "right";
+  ctx.font = "400 13px 'Marianne',system-ui,sans-serif";
+  ctx.fillStyle = "#c9c9ff";
+  ctx.fillText("Reste à traiter : " + restantes(), W - 14, 20);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(0, 40, W, 3);
+
+  // briques
+  ctx.textAlign = "center";
+  for(const br of briques){
+    if(!br.vivante) continue;
+    const t = TYPES[br.type];
+    ctx.fillStyle = t.fond;
+    ctx.fillRect(br.x, br.y, br.w, br.h);
+    if(br.type === "norme" && br.pv === 1){
+      ctx.fillStyle = "#d4d4ef";
+      ctx.fillRect(br.x, br.y + br.h - 5, br.w, 5);
+    }
+    if(br.type === "socle"){
+      ctx.strokeStyle = "#5a5a5a"; ctx.lineWidth = 2;
+      ctx.strokeRect(br.x + 1, br.y + 1, br.w - 2, br.h - 2);
+    }
+    ctx.fillStyle = t.texte;
+    let taille = 12;
+    ctx.font = "700 " + taille + "px 'Marianne',system-ui,sans-serif";
+    while(ctx.measureText(br.label).width > br.w - 10 && taille > 8){
+      taille--;
+      ctx.font = "700 " + taille + "px 'Marianne',system-ui,sans-serif";
+    }
+    ctx.fillText(br.label, br.x + br.w/2, br.y + br.h/2 + 1);
+  }
+
+  // éclats
+  for(const p of eclats){
+    ctx.globalAlpha = Math.max(0, p.vie / .55);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x, p.y, p.s, p.s);
+  }
+  ctx.globalAlpha = 1;
+
+  // bonus
+  for(const bo of bonus){
+    const t = TYPES_BONUS[bo.type];
+    ctx.fillStyle = t.couleur;
+    ctx.fillRect(bo.x - 13, bo.y - 9, 26, 18);
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    ctx.strokeRect(bo.x - 13, bo.y - 9, 26, 18);
+    ctx.fillStyle = "#fff";
+    ctx.font = "700 13px 'Marianne',system-ui,sans-serif";
+    ctx.fillText(t.c, bo.x, bo.y + 1);
+  }
+
+  // barre + chef de projet
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(barre.x, barre.y, barre.w, barre.h);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(barre.x, barre.y + barre.h - 3, barre.w, 3);
+  // silhouette
+  const cx = barre.x + barre.w/2;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath(); ctx.arc(cx, barre.y - 13, 5.5, 0, Math.PI*2); ctx.fill();
+  ctx.fillRect(cx - 4, barre.y - 7, 8, 7);
+
+  // balles
+  for(const b of balles){
+    ctx.fillStyle = "#FFCA00";
+    ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#161616";
+    ctx.beginPath(); ctx.arc(b.x - 2, b.y - 2, 2, 0, Math.PI*2); ctx.fill();
+  }
+
+  // bulles de texte
+  ctx.font = "600 12px 'Marianne',system-ui,sans-serif";
+  for(const bu of bulles){
+    ctx.globalAlpha = Math.min(1, bu.vie);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(bu.t, bu.x, bu.y);
+  }
+  ctx.globalAlpha = 1;
+
+  // consigne de lancement
+  if(etat === "jeu" && collee){
+    ctx.fillStyle = "#c9c9ff";
+    ctx.font = "400 13px 'Marianne',system-ui,sans-serif";
+    ctx.fillText("Clic, doigt ou espace pour lancer", W/2, barre.y - 38);
+  }
+}
+
+/* ---------- démarrage ---------- */
+resize();
+chargerNiveau(0);
+etat = "menu";
+majHud();
+requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

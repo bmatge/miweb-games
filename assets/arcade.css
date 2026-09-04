@@ -1,0 +1,84 @@
+/* Socle commun aux jeux de miweb-games : coquille de page, HUD, plein ecran. */
+:root{
+  --bleu:#000091;
+  --bleu-fonce:#00006e;
+  --rouge:#E1000F;
+  --jaune:#FFCA00;
+  --vert:#18753C;
+  --gris:#E5E5E5;
+  --encre:#161616;
+  --papier:#F7F7F5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--papier);
+  color:var(--encre);
+  font-family:"Marianne","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  line-height:1.45;
+  padding:18px 14px 40px;
+}
+.wrap{max-width:840px;margin:0 auto}
+
+.retour{
+  display:inline-block;margin-bottom:10px;font-size:13px;
+  color:var(--bleu);text-decoration:none;font-weight:600;
+}
+.retour:hover{text-decoration:underline}
+
+h1{
+  font-size:clamp(22px,5.4vw,34px);
+  line-height:1.05;letter-spacing:-0.02em;font-weight:800;margin:0 0 6px;
+}
+.chapo{margin:0 0 16px;font-size:14px;max-width:62ch;color:#3a3a3a}
+
+.hud{display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;margin-bottom:8px}
+.stat{background:#fff;border:1px solid var(--gris);padding:6px 10px;min-width:96px}
+.stat b{display:block;font-size:17px;font-weight:700;letter-spacing:-0.01em}
+.stat span{font-size:11px;color:#555}
+.outils{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.outil{
+  background:#fff;border:1px solid var(--gris);padding:6px 10px;
+  font:inherit;font-size:12px;cursor:pointer;color:var(--encre);
+}
+.outil:hover{background:#f0f0ff}
+.outil[aria-pressed="true"]{background:var(--bleu);color:#fff;border-color:var(--bleu)}
+.outil[hidden]{display:none}
+
+.board{position:relative;line-height:0;border:1px solid #000;background:var(--bleu)}
+canvas{display:block;width:100%;height:auto;touch-action:none}
+
+/* Plein ecran : l'API native quand elle existe, sinon ce repli CSS — Safari iOS
+   refuse requestFullscreen sur autre chose qu'une video. */
+.board.plein{
+  position:fixed;inset:0;z-index:9999;border:0;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bleu-fonce);padding:0;
+}
+.board.plein canvas{width:auto;height:auto;max-width:100vw;max-height:100vh}
+body.plein-actif{overflow:hidden}
+
+.overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;text-align:center;
+  background:rgba(0,0,145,.93);color:#fff;padding:22px;line-height:1.4;
+}
+.overlay[hidden]{display:none}
+.overlay h2{font-size:clamp(18px,4.6vw,26px);margin:0 0 8px;font-weight:800;letter-spacing:-0.02em}
+.overlay p{margin:0 0 14px;font-size:14px;max-width:44ch;color:#dcdcff}
+.btn{
+  background:var(--jaune);color:#161616;border:0;
+  padding:11px 20px;font:inherit;font-weight:700;font-size:15px;cursor:pointer;
+}
+.btn:hover{background:#fff}
+.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+
+.journal{
+  margin-top:8px;border-left:3px solid var(--rouge);
+  background:#fff;padding:8px 12px;font-size:13px;min-height:38px;
+}
+.journal span{color:#666;font-size:11px;display:block}
+.aide{margin-top:14px;font-size:12.5px;color:#555}
+.aide code{background:#fff;border:1px solid var(--gris);padding:1px 5px;font-size:12px}
+.legende{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:#444}
+.legende i{display:inline-block;width:11px;height:11px;margin-right:5px;vertical-align:-1px;border:1px solid #00000030}
