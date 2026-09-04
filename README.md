@@ -11,6 +11,8 @@ En ligne : <https://miweb-games.lab.miweb.run>
 |---|---|---|
 | Casse-brique du chef de projet | `casse-brique/` | Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber en trois COPIL. |
 | Snake — Constituez votre équipe web | `snake/` | Vous démarrez seul. Quarante métiers du web à recruter ; chaque profil allonge l'équipe et la rend plus dure à diriger. |
+| La chaîne de validation | `validation/` | Un dossier à pousser du cadrage à la mise en ligne, à travers six instances dont les obstacles circulent. Percuté, il repart du départ ; la fin de gestion, elle, n'attend pas. |
+| Le support N1 | `support/` | Douze guichets, les tickets sortent la tête. Taper avant la remontée en N2, sauf la demande du cabinet, qu'on escalade. |
 
 ## Structure
 
@@ -20,6 +22,8 @@ assets/arcade.css   coquille des jeux (salle d'arcade sombre : en-tête, HUD, sc
 assets/arcade.js    plein écran, inclinaison, cadrage et sprites pixel (Arcade.pix)
 casse-brique/       jeu 1
 snake/              jeu 2
+validation/         jeu 3 (canvas 800×490, plus proche du 16/9)
+support/            jeu 4 (idem)
 ```
 
 Chaque jeu reste autonome : son moteur vit dans son `index.html`. Sont mutualisés la coquille

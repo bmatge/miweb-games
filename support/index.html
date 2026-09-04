@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Le support N1</title>
+<link rel="stylesheet" href="../assets/arcade.css?v=5">
+<style>
+  /* Le curseur systeme disparait sur le plateau : le tampon dessine au
+     canvas le remplace. */
+  .board canvas{cursor:none}
+</style>
+</head>
+<body>
+<div class="wrap jeu">
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Support N1 <span class="sous">/ douze guichets, une journée</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-fermes">0</b><span>tickets fermés</span></div>
+      <div class="stat"><b id="hud-n2">0 / 8</b><span>remontés en N2</span></div>
+      <div class="stat"><b id="hud-heure">9:00</b><span>heure</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="scene" id="scene" style="--ratio:1.6327">
+    <div class="board" id="board">
+      <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu du support N1"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Prêt à prendre la ligne ?</h2>
+        <p id="ecran-texte">Clic ou doigt sur le ticket avant qu'il ne remonte en N2. Au clavier : flèches puis espace. Une demande du cabinet ne se tape pas, elle s'escalade : laissez-la passer.</p>
+        <button class="btn" id="ecran-btn">Ouvrir le guichet</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Casque sur les oreilles. La file d'attente est déjà pleine.</em></div>
+
+  <section class="notice">
+    <p class="chapo">Douze guichets, les tickets sortent la tête : « mot de passe oublié », « ça marche pas », « urgent DG », « je vous avais dit ». Vous tapez avant qu'ils ne remontent en N2. <strong>Certains ne se tapent pas</strong> : une demande du cabinet, on l'escalade.</p>
+
+    <div class="legende">
+      <div><i style="background:#ffffff"></i>Ticket ordinaire</div>
+      <div><i style="background:#FFCA00"></i>Urgent DG — vaut triple</div>
+      <div><i style="background:#E1000F"></i>Demande du cabinet — ne pas taper</div>
+    </div>
+
+    <p class="aide">La journée dure de 9 h à 18 h en <strong>90 secondes</strong>, et le rythme monte après la pause déjeuner. Huit tickets remontés en N2 et le N2 vous convoque. Taper une demande du cabinet en compte deux. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+  </section>
+  </aside>
+</div>
+
+<script src="../assets/arcade.js?v=5"></script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- plateau ---------- */
+const W = 800, H = 490, BANDEAU = 40;
+const COLS = 4, ROWS = 3, GW = W / COLS, GH = (H - BANDEAU) / ROWS;   // 200 x 150
+
+const cv = document.getElementById("jeu");
+const ctx = cv.getContext("2d");
+const board = document.getElementById("board");
+const ecran = document.getElementById("ecran");
+const titreEl = document.getElementById("ecran-titre");
+const texteEl = document.getElementById("ecran-texte");
+const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
+const journalEl = document.getElementById("journal");
+const journal = Arcade.journal(journalEl);
+const pix = Arcade.pix;
+const hudFermes = document.getElementById("hud-fermes");
+const hudN2 = document.getElementById("hud-n2");
+const hudHeure = document.getElementById("hud-heure");
+const btnSon = document.getElementById("btn-son");
+
+/* ---------- les tickets ---------- */
+const TICKETS = [
+  "MOT DE PASSE OUBLIÉ", "ÇA MARCHE PAS", "JE VOUS AVAIS DIT", "C'EST LENT",
+  "L'IMPRIMANTE", "PAS REÇU LE MAIL", "ÉCRAN BLEU", "ACCÈS VPN",
+  "C'EST QUOI LE LOGIN", "TOUJOURS PAS RÉGLÉ", "PIÈCE JOINTE ?", "LE WIFI",
+  "ÇA A DISPARU", "MON ÉCRAN EST NOIR", "URGENT (PAS URGENT)"
+];
+const QUIPS_FERME = [
+  "« Avez-vous essayé de redémarrer ? » Ticket clos.",
+  "Mot de passe réinitialisé. Le même qu'avant, avec un 2.",
+  "Réponse : c'est normal. Ticket clos.",
+  "L'imprimante était éteinte. Ticket clos, dignité intacte.",
+  "Le câble était débranché. On ne le dira à personne.",
+  "Le wifi marche. C'était le mode avion.",
+  "La pièce jointe était dans le mail précédent. Ticket clos.",
+  "Résolu en 40 secondes. La personne rappelle dans 41."
+];
+const QUIPS_DG = [
+  "Urgent DG traité en quatre secondes. Record du service.",
+  "La DG voulait le fond d'écran d'avant. Fait.",
+  "Urgent DG : le son du visio. C'était le bouton « muet »."
+];
+const QUIPS_N2 = [
+  "Ticket remonté en N2. Ils vont le redescendre avec une question.",
+  "Perdu en N2. Il reviendra dans trois semaines, sans réponse.",
+  "Escaladé faute de temps. Le N2 soupire, on l'entend d'ici."
+];
+
+/* ---------- etat ---------- */
+const CLE_RECORD = "miweb-games:support:record";
+const JOURNEE = 90, N2_MAX = 8;
+
+let etat = "menu";           // menu | jeu | pause | fin
+let guichets = [], temps = 0, prochain = 0;
+let fermes = 0, n2 = 0, points = 0, son = true, record = 0;
+let curseur = {x: W / 2, y: H / 2, visible: false};
+let clavier = {i: 5, actif: false};
+let flashs = [], secousse = 0, tampon = 0, bulles = [];
+let dernierMot = "Casque sur les oreilles. La file d'attente est déjà pleine.";
+
+try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
+
+/* ---------- audio ---------- */
+let ac = null;
+function bip(freq, dur, type){
+  if(!son) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+btnSon.addEventListener("click", () => {
+  son = !son;
+  btnSon.textContent = "Son : " + (son ? "activé" : "coupé");
+  btnSon.setAttribute("aria-pressed", String(son));
+});
+
+/* ---------- rendu adaptatif + plein ecran ---------- */
+let enPlein = false;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  let cssW, cssH;
+  if(enPlein){
+    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(window.innerWidth / W, dispoH / H);
+    cssW = Math.floor(W * s); cssH = Math.floor(H * s);
+    cv.style.width = cssW + "px";
+  } else {
+    cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
+    cssW = board.clientWidth || W;
+    cssH = cssW * H / W;
+  }
+  cv.style.height = cssH + "px";
+  cv.width = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+  const s = (cssW / W) * dpr;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("load", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+  enPlein = on;
+  setTimeout(resize, 60);
+  if(on) majBarre();
+});
+
+/* ---------- construction ---------- */
+function nouvellePartie(){
+  guichets = [];
+  for(let r = 0; r < ROWS; r++)
+    for(let c = 0; c < COLS; c++)
+      guichets.push({x: c * GW, y: BANDEAU + r * GH, ticket: null});
+  temps = 0; prochain = .8;
+  fermes = 0; n2 = 0; points = 0;
+  flashs = []; bulles = []; secousse = 0;
+  majHud();
+  log("Casque sur les oreilles. La file d'attente est déjà pleine.");
+}
+
+/** Cadence et duree d'affichage selon l'heure : le matin est calme, l'apres-
+ *  midi ne l'est pas. `avancement` va de 0 (9 h) a 1 (18 h). */
+function rythme(){
+  const a = temps / JOURNEE;
+  return {intervalle: 1.15 - .7 * a, duree: 2.3 - 1.1 * a};
+}
+
+function apparaitre(){
+  const libres = guichets.filter(g => !g.ticket);
+  if(libres.length === 0) return;
+  const g = libres[Math.floor(Math.random() * libres.length)];
+  const r = Math.random();
+  let type = "normal", label;
+  if(r < .12){ type = "cabinet"; label = "DEMANDE DU CABINET"; }
+  else if(r < .26){ type = "dg"; label = "URGENT DG"; }
+  else label = TICKETS[Math.floor(Math.random() * TICKETS.length)];
+  const {duree} = rythme();
+  g.ticket = {label, type, t: 0, duree: duree * (type === "dg" ? .7 : 1), etat: "monte", h: 0};
+}
+
+/* ---------- interactions ---------- */
+function versLogique(clientX, clientY){
+  const r = cv.getBoundingClientRect();
+  return {x: (clientX - r.left) / r.width * W, y: (clientY - r.top) / r.height * H};
+}
+function guichetA(x, y){
+  if(y < BANDEAU) return null;
+  const c = Math.floor(x / GW), r = Math.floor((y - BANDEAU) / GH);
+  if(c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
+  return guichets[r * COLS + c];
+}
+
+function taper(x, y){
+  if(etat !== "jeu") return;
+  curseur.x = x; curseur.y = y; curseur.visible = true;
+  tampon = .12;
+  const g = guichetA(x, y);
+  if(!g) return;
+  const t = g.ticket;
+  if(!t || t.etat === "ferme" || t.etat === "descend") { bip(200, .03); return; }
+  if(t.type === "cabinet"){
+    // La bourde : on a ferme une demande du cabinet.
+    n2 += 2;
+    secousse = .35;
+    flashs.push({g, t: .3, couleur: "#E1000F"});
+    bip(110, .3, "sawtooth");
+    log("Vous avez fermé une demande du cabinet. Convocation à 18 h 05.");
+    t.etat = "ferme"; t.t = 0;
+    majHud();
+    if(n2 >= N2_MAX) return finir("Le N2 sature et vous convoque. Le cabinet aussi.");
+    return;
+  }
+  fermes++;
+  points += t.type === "dg" ? 3 : 1;
+  t.etat = "ferme"; t.t = 0;
+  flashs.push({g, t: .18, couleur: "#ffffff"});
+  bulles.push({x: g.x + GW / 2, y: g.y + 30, t: t.type === "dg" ? "+3" : "CLOS", vie: .8});
+  bip(t.type === "dg" ? 880 : 640, .06);
+  log(t.type === "dg" ? QUIPS_DG[Math.floor(Math.random() * QUIPS_DG.length)]
+                      : QUIPS_FERME[Math.floor(Math.random() * QUIPS_FERME.length)]);
+  majHud();
+}
+
+cv.addEventListener("mousemove", e => {
+  const p = versLogique(e.clientX, e.clientY);
+  curseur.x = p.x; curseur.y = p.y; curseur.visible = true; clavier.actif = false;
+});
+cv.addEventListener("mouseleave", () => { curseur.visible = false; });
+cv.addEventListener("mousedown", e => { const p = versLogique(e.clientX, e.clientY); taper(p.x, p.y); });
+cv.addEventListener("touchstart", e => {
+  e.preventDefault();
+  const t = e.touches[0], p = versLogique(t.clientX, t.clientY);
+  taper(p.x, p.y);
+}, {passive:false});
+
+window.addEventListener("keydown", e => {
+  const d = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key];
+  if(d){
+    e.preventDefault();
+    clavier.actif = true;
+    const c = Math.max(0, Math.min(COLS - 1, clavier.i % COLS + d[0]));
+    const r = Math.max(0, Math.min(ROWS - 1, Math.floor(clavier.i / COLS) + d[1]));
+    clavier.i = r * COLS + c;
+    const g = guichets[clavier.i];
+    curseur.x = g.x + GW / 2; curseur.y = g.y + GH / 2; curseur.visible = true;
+  }
+  if(e.key === " " || e.key === "Enter"){
+    e.preventDefault();
+    if(etat === "menu" || etat === "fin"){ btnEl.click(); return; }
+    if(clavier.actif) taper(curseur.x, curseur.y);
+  }
+  if(e.key === "p" || e.key === "P") basculerPause();
+});
+
+function basculerPause(){
+  if(etat === "jeu"){ etat = "pause"; montrer("Pause syndicale", "Les tickets attendent. Enfin, ils s'accumulent.", "Reprendre"); }
+  else if(etat === "pause"){ cacher(); etat = "jeu"; }
+}
+function montrer(titre, texte, bouton){
+  titreEl.textContent = titre; texteEl.textContent = texte;
+  btnEl.textContent = bouton; ecran.hidden = false;
+}
+function cacher(){ ecran.hidden = true; }
+btnEl.addEventListener("click", () => {
+  if(etat === "pause"){ etat = "jeu"; cacher(); return; }
+  nouvellePartie();
+  etat = "jeu"; cacher();
+});
+
+function log(txt){ dernierMot = txt; journal.ecrire(txt); majBarre(); }
+function heure(){
+  const h = 9 + (temps / JOURNEE) * 9;
+  const hh = Math.floor(h), mm = Math.floor((h - hh) * 60);
+  return hh + ":" + String(mm).padStart(2, "0");
+}
+function majHud(){
+  hudFermes.textContent = fermes;
+  hudN2.textContent = n2 + " / " + N2_MAX;
+  hudHeure.textContent = heure();
+  majBarre();
+}
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(fermes + " clos · N2 " + n2 + "/" + N2_MAX);
+  pleinEcran.message(dernierMot);
+}
+
+/* ---------- boucle ---------- */
+let dernier = performance.now(), tickHud = 0;
+function boucle(now){
+  const dt = Math.min((now - dernier) / 1000, .05);
+  dernier = now;
+  if(etat === "jeu") maj(dt);
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
+  if(tampon > 0) tampon = Math.max(0, tampon - dt);
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  for(let i = bulles.length - 1; i >= 0; i--){ bulles[i].y -= 30 * dt; bulles[i].vie -= dt; if(bulles[i].vie <= 0) bulles.splice(i, 1); }
+  dessiner();
+  requestAnimationFrame(boucle);
+}
+
+function maj(dt){
+  temps += dt;
+  tickHud += dt;
+  if(tickHud > .5){ tickHud = 0; hudHeure.textContent = heure(); }
+  if(temps >= JOURNEE) return finir(null);
+
+  prochain -= dt;
+  if(prochain <= 0){ apparaitre(); prochain = rythme().intervalle * (.7 + Math.random() * .6); }
+
+  for(const g of guichets){
+    const t = g.ticket;
+    if(!t) continue;
+    t.t += dt;
+    if(t.etat === "monte"){
+      t.h = Math.min(1, t.t / .22);
+      if(t.t >= .22){ t.etat = "haut"; t.t = 0; }
+    } else if(t.etat === "haut"){
+      if(t.t >= t.duree){ t.etat = "descend"; t.t = 0; }
+    } else if(t.etat === "descend"){
+      t.h = Math.max(0, 1 - t.t / .22);
+      if(t.t >= .22){
+        g.ticket = null;
+        if(t.type === "cabinet"){
+          points += 5;
+          bulles.push({x: g.x + GW / 2, y: g.y + 30, t: "ESCALADÉ", vie: .9});
+          bip(520, .08, "triangle");
+          log("Demande du cabinet escaladée dans les règles. Personne ne saura que vous avez hésité.");
+        } else {
+          n2++;
+          bulles.push({x: g.x + GW / 2, y: g.y + 30, t: "N2", vie: .9});
+          bip(180, .12, "sawtooth");
+          log(QUIPS_N2[Math.floor(Math.random() * QUIPS_N2.length)]);
+          majHud();
+          if(n2 >= N2_MAX) return finir("Le N2 sature et vous convoque.");
+        }
+      }
+    } else if(t.etat === "ferme"){
+      t.h = Math.max(0, 1 - t.t / .14);
+      if(t.t >= .14) g.ticket = null;
+    }
+  }
+}
+
+function finir(raison){
+  etat = "fin";
+  majHud();
+  if(points > record){
+    record = points;
+    try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
+  }
+  const bilan = fermes + " ticket" + (fermes > 1 ? "s" : "") + " fermé" + (fermes > 1 ? "s" : "") +
+    ", " + n2 + " remonté" + (n2 > 1 ? "s" : "") + " en N2, " + points + " points" +
+    (record > 0 ? " (record : " + record + ")" : "") + ".";
+  if(raison){
+    secousse = .4;
+    bip(120, .3, "sawtooth");
+    montrer("Convocation", raison + " " + bilan, "Reprendre le guichet");
+    log(raison);
+  } else {
+    bip(700, .1, "triangle"); setTimeout(() => bip(940, .14, "triangle"), 100);
+    montrer("18 h, fin de journée", bilan + " Demain, les mêmes tickets, avec les mêmes personnes.", "Refaire une journée");
+    log("18 h. Le casque tombe. La file n'est pas vide, elle ne l'est jamais.");
+  }
+}
+
+/* ---------- dessin ---------- */
+const TAMPON = [
+  "..XXXX..",
+  ".XXXXXX.",
+  "XXXXXXXX",
+  "XXXXXXXX",
+  "...XX...",
+  "...XX...",
+  "...XX...",
+  "..XXXX.."];
+
+function dessiner(){
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 14;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, 25, "#000091", "#000082");
+
+  // bandeau
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(0, 0, W, BANDEAU);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(0, BANDEAU - 3, W, 3);
+  pix.texte(ctx, "TICKETS CLOS " + fermes + "  ·  N2 " + n2 + "/" + N2_MAX, 14, 13, 2, "#FFCA00");
+  pix.texte(ctx, heure(), W - 14, 13, 2, "#c9c9ff", "right");
+  pix.texte(ctx, "JOURNÉE", W - 14 - 70, 15, 1.5, "#8f8fd8", "right");
+
+  // guichets : un comptoir biseaute, une fente sombre d'ou sortent les tickets
+  for(let i = 0; i < guichets.length; i++){
+    const g = guichets[i];
+    const x = g.x + 14, y = g.y + 12, w = GW - 28, h = GH - 24;
+    pix.biseau(ctx, x, y, w, h, 3, "#1b1e4a", true);
+    // la fente
+    const fy = y + h - 34;
+    ctx.fillStyle = "#08082a";
+    ctx.fillRect(x + 22, fy, w - 44, 22);
+    pix.texte(ctx, "N1-" + String(i + 1).padStart(2, "0"), x + w / 2, y + h - 10, 1, "rgba(255,255,255,.3)", "center");
+
+    const t = g.ticket;
+    if(t){
+      // Le ticket monte depuis la fente : la partie encore dedans est
+      // masquee par un clip sur la zone au-dessus de la fente.
+      const taille = 56, sommet = fy - taille + 6;
+      ctx.save();
+      ctx.beginPath(); ctx.rect(x, y, w, fy - y + 4); ctx.clip();
+      const ty = fy + 6 - taille * t.h;
+      const chemise = t.type === "cabinet" ? "#E1000F" : t.type === "dg" ? "#FFCA00" : "#ffffff";
+      if(t.h > .2) pix.lueur(ctx, x + w / 2, ty + taille / 2, taille, chemise, .25 * t.h);
+      pix.agent(ctx, x + w / 2 - taille / 2, ty, taille, chemise);
+      ctx.restore();
+      // l'etiquette au-dessus, quand le ticket est sorti
+      if(t.h > .6 && t.etat !== "ferme"){
+        const lw = Math.min(w - 8, pix.largeur(t.label, 1.5) + 16);
+        const ly = Math.max(y + 4, sommet - 24);
+        const fond = t.type === "cabinet" ? "#E1000F" : t.type === "dg" ? "#FFCA00" : "#ffffff";
+        const enc = t.type === "cabinet" ? "#ffffff" : "#161616";
+        pix.biseau(ctx, x + w / 2 - lw / 2, ly, lw, 20, 2, fond);
+        pix.texteAjuste(ctx, t.label, x + w / 2, ly + 5, lw - 12, 1.5, enc, "center");
+        // barre de temps restant
+        if(t.etat === "haut"){
+          const k = 1 - t.t / t.duree;
+          ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.fillRect(x + w / 2 - lw / 2, ly + 20, lw, 3);
+          ctx.fillStyle = k < .3 ? "#E1000F" : "#FFCA00"; ctx.fillRect(x + w / 2 - lw / 2, ly + 20, lw * k, 3);
+        }
+      }
+    }
+  }
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // flashs
+  for(const fl of flashs){
+    const k = fl.t / .3, e = (1 - k) * 8;
+    ctx.globalAlpha = Math.min(1, k) * .8;
+    ctx.fillStyle = fl.couleur;
+    ctx.fillRect(fl.g.x + 14 - e, fl.g.y + 12 - e, GW - 28 + 2 * e, GH - 24 + 2 * e);
+  }
+  ctx.globalAlpha = 1;
+
+  // bulles
+  for(const b of bulles){
+    ctx.globalAlpha = Math.min(1, b.vie);
+    pix.texte(ctx, b.t, b.x, b.y, 2, "#ffffff", "center");
+  }
+  ctx.globalAlpha = 1;
+
+  // le tampon (curseur)
+  if(curseur.visible && etat === "jeu"){
+    const s = tampon > 0 ? .8 : 1;
+    const taille = 34 * s;
+    if(clavier.actif){
+      const g = guichets[clavier.i];
+      ctx.strokeStyle = "#FFCA00"; ctx.lineWidth = 3;
+      ctx.strokeRect(g.x + 14, g.y + 12, GW - 28, GH - 24);
+    }
+    pix.grille(ctx, TAMPON, curseur.x - taille / 2, curseur.y - taille * .9, taille, {X: "#FFCA00"});
+  }
+  ctx.restore();
+}
+
+/* ---------- demarrage ---------- */
+resize();
+nouvellePartie();
+etat = "menu";
+requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>La chaîne de validation</title>
+<link rel="stylesheet" href="../assets/arcade.css?v=5">
+</head>
+<body>
+<div class="wrap jeu">
+  <header class="tete">
+    <a class="retour" href="../">&larr; Jeux</a>
+    <h1>Validation <span class="sous">/ la chaîne, du cadrage à la mise en ligne</span></h1>
+    <div class="hud">
+      <div class="stat"><b id="hud-ligne">0</b><span>en ligne</span></div>
+      <div class="stat"><b id="hud-retours">0</b><span>allers-retours</span></div>
+      <div class="stat"><b id="hud-chrono">1:30</b><span>fin de gestion</span></div>
+      <div class="outils">
+        <button class="outil" id="btn-inclinaison" hidden aria-pressed="false">Inclinaison : désactivée</button>
+        <button class="outil" id="btn-plein" aria-pressed="false">Plein écran</button>
+        <button class="outil" id="btn-son" aria-pressed="true">Son : activé</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="scene" id="scene" style="--ratio:1.6327">
+    <div class="board" id="board">
+      <canvas id="jeu" width="800" height="490" aria-label="Aire de jeu de la chaîne de validation"></canvas>
+      <div class="overlay" id="ecran">
+        <h2 id="ecran-titre">Prêt à faire circuler ?</h2>
+        <p id="ecran-texte">Flèches, WASD/ZQSD, glissement du doigt ou inclinaison : un pas par geste. Traversez chaque instance entre deux obstacles. Se faire percuter renvoie le dossier au cadrage, jamais à la corbeille.</p>
+        <button class="btn" id="ecran-btn">Lancer le dossier</button>
+      </div>
+    </div>
+  </div>
+
+  <aside class="lateral">
+  <div class="journal" id="journal"><span>Journal</span><em class="mot" id="journal-mot">Dossier prêt. Il ne manque que six avis.</em></div>
+
+  <section class="notice">
+    <p class="chapo">Vous poussez un dossier du cadrage à la mise en ligne. Chaque voie est une instance à traverser au bon moment : juridique, achats, DPO, sécurité, com', RSSI. Les obstacles circulent, et un <strong>chronomètre de fin de gestion</strong> tourne. Se faire percuter, c'est retour à la case départ. Comme dans la vraie vie.</p>
+
+    <div class="legende">
+      <div><i style="background:#6a2ea0"></i>Juridique</div>
+      <div><i style="background:#18753C"></i>Achats</div>
+      <div><i style="background:#0078a8"></i>DPO</div>
+      <div><i style="background:#E1000F"></i>Sécurité</div>
+      <div><i style="background:#FFCA00"></i>Com'</div>
+      <div><i style="background:#ffffff"></i>RSSI</div>
+    </div>
+
+    <p class="aide">Chaque dossier mis en ligne rend <strong>15 secondes</strong> au chronomètre et accélère les instances. Le parapheur, à mi-chemin, est un abri. <code>P</code> met en pause. Le record est conservé dans ce navigateur.</p>
+  </section>
+  </aside>
+</div>
+
+<script src="../assets/arcade.js?v=5"></script>
+<script>
+(() => {
+"use strict";
+
+/* ---------- plateau ---------- */
+// Neuf rangees de 50 px sous un bandeau de 40 : depart en bas, trois
+// instances, un parapheur (abri), trois instances, mise en ligne en haut.
+const W = 800, H = 490, BANDEAU = 40, CELL = 50, COLS = 16, ROWS = 9;
+const R_LIGNE = 0, R_PARAPHEUR = 4, R_DEPART = 8;
+
+const cv = document.getElementById("jeu");
+const ctx = cv.getContext("2d");
+const board = document.getElementById("board");
+const ecran = document.getElementById("ecran");
+const titreEl = document.getElementById("ecran-titre");
+const texteEl = document.getElementById("ecran-texte");
+const btnEl = document.getElementById("ecran-btn");
+const scene = document.getElementById("scene");
+const journalEl = document.getElementById("journal");
+const journal = Arcade.journal(journalEl);
+const pix = Arcade.pix;
+const hudLigne = document.getElementById("hud-ligne");
+const hudRetours = document.getElementById("hud-retours");
+const hudChrono = document.getElementById("hud-chrono");
+const btnSon = document.getElementById("btn-son");
+
+/* ---------- les instances ---------- */
+// Une voie par rangee. `dir` est le sens de circulation, `vitesse` en px/s
+// au niveau 1. Les obstacles sont ce que l'instance renvoie.
+const VOIES = {
+  1: {nom:"RSSI",      fond:"#ffffff", texte:"#000091", dir:-1, vitesse:118,
+      obstacles:["CONGÉS DU VALIDEUR","HOMOLOGATION","AVIS RÉSERVÉ"],
+      quip:"Le RSSI est en congés. Son adjoint n'a pas la délégation."},
+  2: {nom:"COM'",      fond:"#FFCA00", texte:"#161616", dir:1,  vitesse:92,
+      obstacles:["VISUEL À REFAIRE","ÉLÉMENTS DE LANGAGE","VALIDATION CAB"],
+      quip:"La com' veut refaire le visuel. Le bleu n'est pas le bon bleu."},
+  3: {nom:"SÉCURITÉ",  fond:"#E1000F", texte:"#ffffff", dir:-1, vitesse:140,
+      obstacles:["SCAN EN COURS","PORT OUVERT","PSSI"],
+      quip:"La sécu bloque : un port ouvert sur un serveur décommissionné."},
+  5: {nom:"DPO",       fond:"#0078a8", texte:"#ffffff", dir:1,  vitesse:105,
+      obstacles:["PIÈCE COMPLÉMENTAIRE","AIPD","REGISTRE"],
+      quip:"Le DPO demande une pièce complémentaire. La même que la dernière fois."},
+  6: {nom:"ACHATS",    fond:"#18753C", texte:"#ffffff", dir:-1, vitesse:80,
+      obstacles:["TROIS DEVIS","MARCHÉ ÉCHU","BON DE COMMANDE"],
+      quip:"Les achats veulent trois devis. Pour une licence à 40 €."},
+  7: {nom:"JURIDIQUE", fond:"#6a2ea0", texte:"#ffffff", dir:1,  vitesse:125,
+      obstacles:["AVIS DÉFAVORABLE","CLAUSE MANQUANTE","RELECTURE"],
+      quip:"Le juridique renvoie le dossier : une clause manque en page 12."}
+};
+
+const QUIPS_LIGNE = [
+  "Mis en ligne. Personne ne remarque rien, c'est le signe que ça marche.",
+  "En ligne à 17 h 58. La fin de gestion est à 18 h.",
+  "Publié. Le premier commentaire arrive dans quatre minutes.",
+  "Dossier bouclé. Le prochain a déjà commencé sans vous.",
+  "Mise en ligne validée par toutes les instances. Encadrez le mail."
+];
+
+/* ---------- etat ---------- */
+const CLE_RECORD = "miweb-games:validation:record";
+const CHRONO_DEPART = 90, BONUS_LIGNE = 15;
+
+let etat = "menu";           // menu | jeu | pause | fin
+let joueur = {col: 7, row: R_DEPART};
+let voies = [];              // {row, obstacles:[{x, w, label}]}
+let enLigne = 0, retours = 0, chrono = CHRONO_DEPART, allure = 1;
+let son = true, record = 0;
+let saut = 0, flashs = [], secousse = 0, invulnerable = 0;
+let dernierMot = "Dossier prêt. Il ne manque que six avis.";
+
+try { record = parseInt(localStorage.getItem(CLE_RECORD) || "0", 10) || 0; } catch(e) {}
+
+/* ---------- audio ---------- */
+let ac = null;
+function bip(freq, dur, type){
+  if(!son) return;
+  try{
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(.05, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, ac.currentTime + dur);
+    o.connect(g); g.connect(ac.destination);
+    o.start(); o.stop(ac.currentTime + dur);
+  }catch(e){}
+}
+btnSon.addEventListener("click", () => {
+  son = !son;
+  btnSon.textContent = "Son : " + (son ? "activé" : "coupé");
+  btnSon.setAttribute("aria-pressed", String(son));
+});
+
+/* ---------- rendu adaptatif + plein ecran ---------- */
+let enPlein = false;
+function resize(){
+  const dpr = window.devicePixelRatio || 1;
+  let cssW, cssH;
+  if(enPlein){
+    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(window.innerWidth / W, dispoH / H);
+    cssW = Math.floor(W * s); cssH = Math.floor(H * s);
+    cv.style.width = cssW + "px";
+  } else {
+    cv.style.width = "";
+    Arcade.cadrer(scene, journalEl);
+    cssW = board.clientWidth || W;
+    cssH = cssW * H / W;
+  }
+  cv.style.height = cssH + "px";
+  cv.width = Math.round(cssW * dpr);
+  cv.height = Math.round(cssH * dpr);
+  const s = (cssW / W) * dpr;
+  ctx.setTransform(s, 0, 0, s, 0, 0);
+}
+window.addEventListener("resize", resize);
+window.addEventListener("load", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+
+const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
+  enPlein = on;
+  setTimeout(resize, 60);
+  if(on) majBarre();
+});
+
+/* ---------- construction ---------- */
+function construireVoies(){
+  voies = [];
+  for(const r in VOIES){
+    const v = VOIES[r];
+    const obstacles = [];
+    // Trois obstacles par voie, repartis sur une periode plus longue que
+    // l'ecran : il y a toujours une fenetre pour passer.
+    const periode = W + 260;
+    for(let i = 0; i < 3; i++){
+      const label = v.obstacles[i % v.obstacles.length];
+      const w = Math.max(80, pix.largeur(label, 1.25) + 22);
+      obstacles.push({x: i * periode / 3 + Math.random() * 60, w, label, periode});
+    }
+    voies.push({row: +r, obstacles});
+  }
+}
+
+function nouvellePartie(){
+  joueur = {col: 7, row: R_DEPART};
+  enLigne = 0; retours = 0; chrono = CHRONO_DEPART; allure = 1;
+  saut = 0; flashs = []; secousse = 0; invulnerable = 0;
+  construireVoies();
+  majHud();
+  log("Dossier prêt. Il ne manque que six avis.");
+}
+
+/* ---------- interactions ---------- */
+function pas(dx, dy){
+  if(etat !== "jeu") return;
+  const c = joueur.col + dx, r = joueur.row + dy;
+  if(c < 0 || c >= COLS || r < 0 || r > R_DEPART) return;
+  joueur.col = c; joueur.row = r;
+  saut = .14;
+  bip(dy < 0 ? 520 : 420, .04);
+  if(r === R_LIGNE) livrer();
+}
+
+const TOUCHES = {
+  ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1],
+  a:[-1,0], d:[1,0], w:[0,-1], s:[0,1], q:[-1,0], z:[0,-1]
+};
+window.addEventListener("keydown", e => {
+  const k = TOUCHES[e.key] || TOUCHES[e.key.toLowerCase()];
+  if(k){ e.preventDefault(); pas(k[0], k[1]); }
+  if(e.key === "p" || e.key === "P") basculerPause();
+  if(e.key === " "){ e.preventDefault(); if(etat === "menu" || etat === "fin") btnEl.click(); }
+});
+
+// Un pas par glissement, decide pendant le touchmove (cf. README, Tactile).
+let depart = null;
+const SEUIL_SWIPE = 22;
+board.addEventListener("touchstart", e => {
+  const t = e.touches[0];
+  depart = {x: t.clientX, y: t.clientY};
+}, {passive:true});
+board.addEventListener("touchmove", e => {
+  e.preventDefault();
+  if(!depart) return;
+  const t = e.touches[0];
+  const dx = t.clientX - depart.x, dy = t.clientY - depart.y;
+  if(Math.abs(dx) < SEUIL_SWIPE && Math.abs(dy) < SEUIL_SWIPE) return;
+  if(Math.abs(dx) > Math.abs(dy)) pas(dx > 0 ? 1 : -1, 0);
+  else pas(0, dy > 0 ? 1 : -1);
+  depart = {x: t.clientX, y: t.clientY};
+}, {passive:false});
+const finTouche = () => { depart = null; };
+board.addEventListener("touchend", finTouche, {passive:true});
+board.addEventListener("touchcancel", finTouche, {passive:true});
+
+// Inclinaison : un pas quand l'ecart depasse le seuil, puis un temps mort
+// pour ne pas enchainer les pas tant que l'appareil reste penche.
+let tiltRepos = 0;
+Arcade.inclinaison(document.getElementById("btn-inclinaison"), ({dGamma, dBeta}) => {
+  if(etat !== "jeu" || tiltRepos > 0) return;
+  const SEUIL = 14;
+  if(Math.abs(dGamma) < SEUIL && Math.abs(dBeta) < SEUIL) return;
+  if(Math.abs(dGamma) >= Math.abs(dBeta)) pas(dGamma > 0 ? 1 : -1, 0);
+  else pas(0, dBeta > 0 ? 1 : -1);
+  tiltRepos = .32;
+});
+
+function basculerPause(){
+  if(etat === "jeu"){ etat = "pause"; montrer("Dossier en attente", "Le circuit est suspendu. Le chronomètre, lui, attend aussi. C'est rare.", "Reprendre"); }
+  else if(etat === "pause"){ cacher(); etat = "jeu"; }
+}
+function montrer(titre, texte, bouton){
+  titreEl.textContent = titre; texteEl.textContent = texte;
+  btnEl.textContent = bouton; ecran.hidden = false;
+}
+function cacher(){ ecran.hidden = true; }
+btnEl.addEventListener("click", () => {
+  if(etat === "pause"){ etat = "jeu"; cacher(); return; }
+  nouvellePartie();
+  etat = "jeu"; cacher();
+});
+
+function log(txt){ dernierMot = txt; journal.ecrire(txt); majBarre(); }
+function formatChrono(s){
+  s = Math.max(0, Math.ceil(s));
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function majHud(){
+  hudLigne.textContent = enLigne;
+  hudRetours.textContent = retours;
+  hudChrono.textContent = formatChrono(chrono);
+  majBarre();
+}
+function majBarre(){
+  if(!pleinEcran) return;
+  pleinEcran.stat(enLigne + " en ligne · " + formatChrono(chrono));
+  pleinEcran.message(dernierMot);
+}
+
+/* ---------- boucle ---------- */
+let dernier = performance.now(), tickHud = 0;
+function boucle(now){
+  const dt = Math.min((now - dernier) / 1000, .05);
+  dernier = now;
+  if(etat === "jeu") maj(dt);
+  if(saut > 0) saut = Math.max(0, saut - dt);
+  if(secousse > 0) secousse = Math.max(0, secousse - dt);
+  if(tiltRepos > 0) tiltRepos = Math.max(0, tiltRepos - dt);
+  for(let i = flashs.length - 1; i >= 0; i--){ flashs[i].t -= dt; if(flashs[i].t <= 0) flashs.splice(i, 1); }
+  dessiner();
+  requestAnimationFrame(boucle);
+}
+
+function maj(dt){
+  chrono -= dt;
+  tickHud += dt;
+  if(tickHud > .25){ tickHud = 0; hudChrono.textContent = formatChrono(chrono); majBarre(); }
+  if(chrono <= 0){ chrono = 0; return finDeGestion(); }
+  if(invulnerable > 0) invulnerable -= dt;
+
+  for(const v of voies){
+    const def = VOIES[v.row];
+    for(const o of v.obstacles){
+      o.x += def.dir * def.vitesse * allure * dt;
+      if(def.dir > 0 && o.x > W + 130) o.x -= o.periode;
+      if(def.dir < 0 && o.x + o.w < -130) o.x += o.periode;
+    }
+    if(v.row === joueur.row && invulnerable <= 0){
+      const px = joueur.col * CELL + 9, pw = CELL - 18;
+      for(const o of v.obstacles){
+        if(px < o.x + o.w && px + pw > o.x) return percuter(def, o);
+      }
+    }
+  }
+}
+
+function percuter(def, o){
+  retours++;
+  secousse = .3;
+  flashs.push({col: joueur.col, row: joueur.row, t: .25, couleur: def.fond});
+  bip(150, .18, "sawtooth");
+  log("Percuté par « " + o.label.charAt(0) + o.label.slice(1).toLowerCase() + " ». " + def.quip);
+  joueur = {col: 7, row: R_DEPART};
+  invulnerable = .6;
+  majHud();
+}
+
+function livrer(){
+  enLigne++;
+  chrono = Math.min(CHRONO_DEPART, chrono + BONUS_LIGNE);
+  allure *= 1.08;
+  flashs.push({col: joueur.col, row: R_LIGNE, t: .3, couleur: "#ffffff"});
+  bip(700, .08, "triangle"); setTimeout(() => bip(940, .12, "triangle"), 90);
+  log(QUIPS_LIGNE[(enLigne - 1) % QUIPS_LIGNE.length]);
+  if(enLigne > record){
+    record = enLigne;
+    try { localStorage.setItem(CLE_RECORD, String(record)); } catch(e) {}
+  }
+  joueur = {col: 7, row: R_DEPART};
+  invulnerable = .4;
+  majHud();
+}
+
+function finDeGestion(){
+  etat = "fin";
+  secousse = .4;
+  bip(120, .3, "sawtooth");
+  majHud();
+  montrer("Fin de gestion",
+    enLigne + " dossier" + (enLigne > 1 ? "s" : "") + " mis en ligne, " + retours +
+    " aller" + (retours > 1 ? "s" : "") + "-retour" + (retours > 1 ? "s" : "") +
+    ". Ce qui reste repart l'année prochaine, avec un nouveau référentiel." +
+    (record > 0 ? " Record : " + record + "." : ""),
+    "Relancer un exercice");
+  log("Fin de gestion. Les crédits sont tombés, le dossier aussi.");
+}
+
+/* ---------- dessin ---------- */
+const DOSSIER = [
+  "........",
+  ".TTT....",
+  "FFFFFFF.",
+  "FBBBBBF.",
+  "FFFFFFF.",
+  "FBBBBBF.",
+  "FFFFFFF.",
+  "........"];
+const PAL_DOSSIER = {T: "#c9950c", F: "#FFCA00", B: "#fff3c4"};
+
+function bande(row, fond, label){
+  const y = BANDEAU + row * CELL;
+  pix.biseau(ctx, 0, y, W, CELL, 3, fond, true);
+  // A droite : le dossier part du centre, il masquait l'etiquette.
+  pix.texte(ctx, label, W - 20, y + 18, 2, "rgba(255,255,255,.55)", "right");
+}
+
+function dessiner(){
+  ctx.save();
+  if(secousse > 0){
+    const a = secousse * 14;
+    ctx.translate((Math.random() - .5) * a, (Math.random() - .5) * a);
+  }
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+
+  // voies : une bande sombre par instance, le nom en filigrane a gauche
+  pix.damier(ctx, 0, BANDEAU, W, H - BANDEAU, CELL, "#000091", "#000082");
+  for(const r in VOIES){
+    const y = BANDEAU + r * CELL;
+    ctx.fillStyle = "rgba(0,0,0,.22)";
+    ctx.fillRect(0, y + 4, W, CELL - 8);
+    pix.texte(ctx, VOIES[r].nom, 10, y + 20, 1.5, "rgba(255,255,255,.22)");
+  }
+  bande(R_LIGNE, "#18753C", "MISE EN LIGNE");
+  bande(R_PARAPHEUR, "#3a3a8a", "PARAPHEUR");
+  bande(R_DEPART, "#4a4a4a", "CADRAGE");
+  pix.cadre(ctx, 0, BANDEAU, W, H - BANDEAU, 3);
+
+  // bandeau
+  ctx.fillStyle = "#00006e";
+  ctx.fillRect(0, 0, W, BANDEAU);
+  ctx.fillStyle = "#E1000F";
+  ctx.fillRect(0, BANDEAU - 3, W, 3);
+  pix.texte(ctx, "DOSSIER " + (enLigne + 1) + "  ·  EN LIGNE " + enLigne, 14, 13, 2, "#FFCA00");
+  const urgent = chrono < 15 && etat === "jeu";
+  const clignote = urgent && Math.floor(performance.now() / 300) % 2 === 0;
+  pix.texte(ctx, formatChrono(chrono), W - 14, 13, 2, clignote ? "#ffffff" : (urgent ? "#E1000F" : "#c9c9ff"), "right");
+  pix.texte(ctx, "FIN DE GESTION", W - 14 - 62, 15, 1.5, "#8f8fd8", "right");
+
+  // obstacles
+  for(const v of voies){
+    const def = VOIES[v.row];
+    const y = BANDEAU + v.row * CELL + 8;
+    for(const o of v.obstacles){
+      if(o.x > W + 10 || o.x + o.w < -10) continue;
+      pix.biseau(ctx, o.x, y, o.w, CELL - 16, 3, def.fond);
+      pix.texteAjuste(ctx, o.label, o.x + o.w / 2, y + (CELL - 16) / 2 - 4, o.w - 12, 1.25, def.texte, "center");
+    }
+  }
+
+  // flashs (percussion ou mise en ligne)
+  for(const fl of flashs){
+    const k = fl.t / .3, e = (1 - k) * 10;
+    ctx.globalAlpha = Math.min(1, k) * .85;
+    ctx.fillStyle = fl.couleur;
+    ctx.fillRect(fl.col * CELL - e, BANDEAU + fl.row * CELL - e, CELL + 2 * e, CELL + 2 * e);
+  }
+  ctx.globalAlpha = 1;
+
+  // le dossier
+  const px = joueur.col * CELL, py = BANDEAU + joueur.row * CELL;
+  const bond = saut > 0 ? Math.sin(saut / .14 * Math.PI) * 8 : 0;
+  const visible = invulnerable <= 0 || Math.floor(performance.now() / 80) % 2 === 0;
+  if(visible){
+    pix.lueur(ctx, px + CELL / 2, py + CELL / 2, CELL * 1.2, "#FFCA00", .3);
+    pix.grille(ctx, DOSSIER, px + 5, py + 5 - bond, CELL - 10, PAL_DOSSIER);
+  }
+  ctx.restore();
+}
+
+/* ---------- demarrage ---------- */
+resize();
+nouvellePartie();
+etat = "menu";
+requestAnimationFrame(boucle);
+})();
+</script>
+</body>
+</html>
