@@ -5,135 +5,158 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>miweb games — petits jeux du web</title>
 <meta name="description" content="Petits jeux web autonomes sur les coulisses d'un projet numérique : casse-brique du chef de projet, snake des métiers du web, chaîne de validation, support N1.">
+<link rel="stylesheet" href="assets/arcade.css?v=5">
 <style>
-  /* L'accueil garde une mise en page claire, institutionnelle ; les jeux, eux,
-     chargent assets/arcade.css (salle sombre). Rien de partage entre les deux. */
-  :root{
-    --bleu:#000091;
-    --gris:#E5E5E5;
-    --encre:#161616;
-    --papier:#F7F7F5;
+  /* L'accueil partage la salle d'arcade des jeux : memes jetons, meme
+     monospace. Ce qui est propre a la page tient ici. */
+  body{padding:0 0 40px}
+  .wrap{max-width:1120px;padding:0 14px}
+
+  /* --- enseigne : titre en police pixel et mode attente dessines au canvas --- */
+  .enseigne{
+    background:var(--jeu);border-bottom:3px solid var(--rouge);
+    box-shadow:0 0 0 1px #000,0 6px 0 var(--bloc),0 7px 0 #000;
+    margin-bottom:26px;
   }
-  *{box-sizing:border-box}
-  html,body{margin:0;padding:0}
-  body{
-    background:var(--papier);color:var(--encre);
-    font-family:"Marianne","Inter","Segoe UI",system-ui,-apple-system,sans-serif;
-    line-height:1.45;padding:18px 14px 40px;
-  }
-  .wrap{max-width:840px;margin:0 auto}
-  h1{font-size:clamp(22px,5.4vw,34px);line-height:1.05;letter-spacing:-0.02em;font-weight:800;margin:0 0 6px}
-  .chapo{margin:0 0 16px;font-size:14px;max-width:62ch;color:#3a3a3a}
-  .grille{
-    display:grid;gap:14px;margin-top:20px;
-    grid-template-columns:repeat(auto-fill,minmax(272px,1fr));
-  }
+  .enseigne canvas{display:block;width:100%;height:auto;max-width:1120px;margin:0 auto}
+
+  .chapo{margin:0 0 18px;max-width:70ch;font-size:15px}
+  .chapo strong{color:var(--encre)}
+
+  /* --- cards --- */
+  .grille{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr))}
   .card{
-    display:flex;flex-direction:column;
-    background:#fff;border:1px solid var(--gris);
-    color:inherit;text-decoration:none;
-    transition:border-color .12s, transform .12s;
+    display:flex;flex-direction:column;color:inherit;text-decoration:none;
+    background:var(--bloc);border:2px solid var(--trait);
+    box-shadow:0 0 0 1px #000,inset 1px 1px 0 rgba(255,255,255,.05);
+    transition:transform .12s,border-color .12s;
   }
-  .card:hover,.card:focus-visible{border-color:var(--bleu);transform:translateY(-2px)}
-  .card:focus-visible{outline:3px solid var(--bleu);outline-offset:2px}
-  .vignette{aspect-ratio:16/9;width:100%;display:block;background:var(--bleu)}
-  .card-corps{padding:12px 14px 14px}
-  .card h2{font-size:17px;margin:0 0 4px;font-weight:700;letter-spacing:-0.01em}
-  .card p{margin:0 0 10px;font-size:13px;color:#444;line-height:1.4}
-  .tags{display:flex;flex-wrap:wrap;gap:5px}
-  .tag{font-size:11px;padding:2px 7px;border:1px solid var(--gris);background:var(--papier);color:#555}
+  .card:hover,.card:focus-visible{border-color:var(--accent);transform:translateY(-2px)}
+  .card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .vignette{aspect-ratio:16/9;width:100%;display:block;background:var(--jeu);border-bottom:2px solid var(--trait)}
+  .card-corps{padding:12px 14px 14px;display:flex;flex-direction:column;flex:1}
+  .card h2{
+    font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;
+    margin:0 0 6px;font-weight:800;color:var(--encre);
+  }
+  .card h2 .num{color:var(--accent);margin-right:6px}
+  .card p{margin:0 0 10px;font-size:13px;color:var(--sourd);line-height:1.45}
+  .tags{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+  .tag{
+    font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    padding:3px 7px;background:var(--bloc-haut);color:var(--sourd);
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.08),inset -1px -1px 0 rgba(0,0,0,.5);
+  }
+  .record{
+    margin-top:auto;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--sourd);
+    padding-top:8px;border-top:1px solid var(--trait);
+  }
+  .record b{color:var(--accent);font-size:13px;text-transform:none;letter-spacing:0}
+  .record .vide{font-style:italic;text-transform:none;letter-spacing:0}
   .jouer{
-    margin-top:10px;display:inline-block;font-size:13px;font-weight:700;color:var(--bleu);
+    margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:#161616;background:var(--accent);padding:5px 10px;
+    box-shadow:inset 1px 1px 0 rgba(255,255,255,.45),inset -1px -1px 0 rgba(0,0,0,.3);
   }
-  .card:hover .jouer{text-decoration:underline}
-  .scores-section{margin-top:32px;border-top:1px solid var(--gris);padding-top:18px}
-  .scores-section h2{font-size:18px;margin:0 0 4px;letter-spacing:-0.01em}
-  .scores-section .note{margin:0 0 14px;font-size:13px;color:#555}
-  .pseudo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px;font-size:13.5px}
+  .card:hover .jouer{background:#fff}
+
+  /* --- scores --- */
+  .scores-section{margin-top:34px;border-top:1px solid var(--trait);padding-top:18px}
+  .scores-section h2{
+    font-family:var(--mono);font-size:15px;letter-spacing:.08em;text-transform:uppercase;
+    margin:0 0 6px;color:var(--encre);
+  }
+  .scores-section .note{margin:0 0 14px;font-size:13px;color:var(--sourd);max-width:70ch}
+  .pseudo{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:18px;font-size:13px;color:var(--sourd)}
+  .pseudo label{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase}
   .pseudo input{
-    font:inherit;font-size:14px;padding:6px 10px;border:1px solid #929292;background:#fff;
-    width:16ch;
+    font:inherit;font-family:var(--mono);font-size:14px;font-weight:700;padding:6px 10px;width:16ch;
+    color:var(--accent);background:rgba(0,0,0,.4);border:2px solid var(--trait);
   }
-  .pseudo input:focus{outline:2px solid var(--bleu);outline-offset:1px}
-  .pseudo button{
-    font:inherit;font-size:13px;font-weight:700;padding:7px 12px;border:0;
-    background:var(--bleu);color:#fff;cursor:pointer;
-  }
-  .pseudo .ok{font-size:12.5px;color:#18753C}
-  .tableaux{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(272px,1fr))}
-  .tableaux .bloc{background:#fff;border:1px solid var(--gris);padding:10px 12px 12px}
-  .tableaux h3{font-size:14px;margin:0 0 2px}
-  .tableaux .unite{font-size:11.5px;color:#666;margin:0 0 8px}
-  .tableaux table{border-collapse:collapse;width:100%;font-size:12.5px;font-variant-numeric:tabular-nums}
-  .tableaux td{padding:3px 4px;border-top:1px solid #eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14ch}
-  .tableaux td:first-child{color:#888;width:2ch}
-  .tableaux td.score{text-align:right;font-weight:700;color:var(--bleu)}
-  .tableaux td:last-child{color:#777;font-size:11.5px;text-align:right;white-space:normal}
-  .tableaux .vide{font-size:12.5px;color:#777;font-style:italic;margin:0}
-  .pied{margin-top:28px;font-size:12.5px;color:#666;border-top:1px solid var(--gris);padding-top:12px}
-  .pied a{color:var(--bleu)}
+  .pseudo input:focus{outline:2px solid var(--accent);outline-offset:2px}
+  .pseudo .btn{padding:8px 12px;font-size:11px}
+  .pseudo .ok{font-family:var(--mono);font-size:11px;color:#5BD08A}
+  .tableaux{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,440px),1fr))}
+  .tableaux .bloc{background:var(--bloc);border:1px solid var(--trait);padding:10px 12px 12px}
+  .tableaux h3{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 2px;color:var(--encre)}
+  .tableaux .unite{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--sourd);margin:0 0 8px}
+  .tableaux table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12px}
+  .tableaux td{padding:3px 4px;border-top:1px solid var(--trait);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:14ch;color:#dcdcff}
+  .tableaux td:first-child{color:var(--sourd);width:2ch}
+  .tableaux td.score{text-align:right;font-weight:700;color:var(--accent)}
+  .tableaux td:last-child{color:var(--sourd);font-size:11px;text-align:right;white-space:normal}
+  .tableaux .vide{font-size:12.5px;color:var(--sourd);font-style:italic;margin:0}
+
+  .pied{margin-top:30px;font-size:12.5px;color:var(--sourd);border-top:1px solid var(--trait);padding-top:12px}
+  .pied a{color:var(--encre)}
+
+  @media (prefers-reduced-motion:reduce){ .card{transition:none} }
 </style>
 </head>
 <body>
+<header class="enseigne">
+  <canvas id="enseigne" width="1120" height="150" role="img" aria-label="miweb games : quatre petits jeux sur les coulisses d'un projet web"></canvas>
+</header>
+
 <div class="wrap">
-  <h1>miweb games</h1>
-  <p class="chapo">Quatre petits jeux sur les coulisses d'un projet web. Une page chacun, pas de dépendance, pas de compte, pas de pistage. Jouables au clavier, au doigt et à l'inclinaison, en plein écran sur mobile.</p>
+  <p class="chapo"><strong>Quatre petits jeux sur les coulisses d'un projet web.</strong> Une page chacun, pas de dépendance, pas de compte, pas de pistage. Jouables au clavier, au doigt et à l'inclinaison, en plein écran sur mobile. Le tableau des scores est partagé entre tous les joueurs.</p>
 
   <div class="grille">
 
-    <a class="card" href="casse-brique/">
+    <a class="card" href="casse-brique/" data-jeu="casse-brique">
       <canvas class="vignette" id="vig-casse" width="320" height="180" role="img" aria-label="Aperçu : un mur de briques colorées et une barre en bas"></canvas>
       <div class="card-corps">
-        <h2>Casse-brique du chef de projet</h2>
-        <p>Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber en trois COPIL. Deux briques ne cèdent jamais : décret et circulaire.</p>
+        <h2><span class="num">01</span>Casse-brique du chef de projet</h2>
+        <p>Vous êtes la barre, le projet est la balle. Référentiels, incidents et instances à faire tomber, lot après lot, jusqu'au renouvellement du marché. Deux briques ne cèdent jamais : décret et circulaire.</p>
         <div class="tags">
-          <span class="tag">3 niveaux</span>
+          <span class="tag">3 lots, puis ça recommence</span>
           <span class="tag">Bonus et malus</span>
           <span class="tag">Clavier · doigt · inclinaison</span>
         </div>
-        <span class="jouer">Jouer →</span>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
       </div>
     </a>
 
-    <a class="card" href="snake/">
+    <a class="card" href="snake/" data-jeu="snake">
       <canvas class="vignette" id="vig-snake" width="320" height="180" role="img" aria-label="Aperçu : un serpent composé de carrés colorés se dirigeant vers un profil à recruter"></canvas>
       <div class="card-corps">
-        <h2>Snake — Constituez votre équipe web</h2>
+        <h2><span class="num">02</span>Snake — Constituez votre équipe web</h2>
         <p>Vous démarrez seul. Chaque profil recruté agrandit l'équipe et la rend plus dure à diriger. Quarante métiers à réunir, en évitant la dette technique qui s'accumule.</p>
         <div class="tags">
           <span class="tag">40 métiers</span>
           <span class="tag">6 familles</span>
           <span class="tag">Clavier · doigt · inclinaison</span>
         </div>
-        <span class="jouer">Jouer →</span>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
       </div>
     </a>
 
-    <a class="card" href="validation/">
+    <a class="card" href="validation/" data-jeu="validation">
       <canvas class="vignette" id="vig-validation" width="320" height="180" role="img" aria-label="Aperçu : des voies horizontales avec des obstacles colorés, un dossier jaune qui les traverse"></canvas>
       <div class="card-corps">
-        <h2>La chaîne de validation</h2>
-        <p>Vous poussez un dossier du cadrage à la mise en ligne. Six instances à traverser au bon moment, des obstacles qui circulent, et la fin de gestion qui approche. Percuté ? Retour au départ, pas à la corbeille.</p>
+        <h2><span class="num">03</span>La chaîne de validation</h2>
+        <p>Vous poussez un dossier du cadrage à la mise en ligne. Dix instances à traverser au bon moment, des obstacles qui circulent, et la fin de gestion qui approche. Percuté ? Retour au départ, pas à la corbeille.</p>
         <div class="tags">
           <span class="tag">10 instances</span>
           <span class="tag">Chronomètre</span>
           <span class="tag">Clavier · doigt · inclinaison</span>
         </div>
-        <span class="jouer">Jouer →</span>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
       </div>
     </a>
 
-    <a class="card" href="support/">
+    <a class="card" href="support/" data-jeu="support">
       <canvas class="vignette" id="vig-support" width="320" height="180" role="img" aria-label="Aperçu : une grille de guichets d'où sortent des personnages avec une étiquette"></canvas>
       <div class="card-corps">
-        <h2>Le support N1 du site</h2>
+        <h2><span class="num">04</span>Le support N1 du site</h2>
         <p>Le support de premier niveau d'un site sous Drupal. Douze guichets, les tickets sortent la tête : bug CSS, nouveau contributeur, accès Totem, BO qui ne répond plus. Vous tapez avant la remontée en N2. Sauf la demande du cabinet : celle-là, on l'escalade.</p>
         <div class="tags">
           <span class="tag">Une journée en 90 s</span>
           <span class="tag">Réflexes</span>
           <span class="tag">Souris · doigt · clavier</span>
         </div>
-        <span class="jouer">Jouer →</span>
+        <div class="record"><span>Record</span><span class="valeur"><span class="vide">chargement…</span></span><span class="jouer">Jouer</span></div>
       </div>
     </a>
 
@@ -145,7 +168,7 @@
     <form class="pseudo" id="form-pseudo">
       <label for="pseudo">Votre pseudo</label>
       <input id="pseudo" maxlength="14" autocomplete="nickname" placeholder="Anonyme">
-      <button type="submit">Enregistrer</button>
+      <button type="submit" class="btn">Enregistrer</button>
       <span class="ok" id="pseudo-ok" hidden>Enregistré.</span>
     </form>
     <div class="tableaux" id="tableaux"></div>
@@ -157,13 +180,16 @@
     Le pilotage à l'inclinaison demande une autorisation sur iOS : le bouton apparaît dans le jeu.
   </p>
 </div>
+
 <script src="assets/arcade.js?v=5"></script>
 <script>
-// Vignettes dessinees avec les sprites des jeux eux-memes (Arcade.pix) : ce
-// que montre la card est exactement ce que rend le plateau.
+// Vignettes et enseigne dessinees avec les sprites des jeux eux-memes
+// (Arcade.pix) : ce que montre l'accueil est exactement ce que rend le plateau.
 (() => {
   const P = Arcade.pix;
   const dpr = window.devicePixelRatio || 1;
+
+  /* ---------- vignettes ---------- */
   function toile(id){
     const cv = document.getElementById(id), W = 320, H = 180;
     cv.width = W * dpr; cv.height = H * dpr;
@@ -179,19 +205,19 @@
   const T = {n:"#ffffff", t:"#E1000F", p:"#FFCA00", s:"#7d7d7d"};
   [["n","p","t","n","p"],["t","n","s","p","t"],["","p","n","t",""]].forEach((l, r) =>
     l.forEach((k, i) => { if(k) P.biseau(c, 14 + i * 62, 30 + r * 21, 54, 15, 2, T[k], k === "s"); }));
+  P.lueur(c, 196, 112, 18, "#FFCA00", .4);
   P.balle(c, 196, 112, 6);
   P.biseau(c, 132, 150, 70, 9, 2, "#ffffff");
   c.fillStyle = "#E1000F"; c.fillRect(134, 157, 66, 2);
-  P.agent(c, 160, 134, 14, "#FFCA00");
+  P.agent(c, 138, 134, 14, "#FFCA00");
   // snake
   c = toile("vig-snake");
-  c.strokeStyle = "rgba(255,255,255,.08)"; c.lineWidth = 1;
-  for(let x = 40; x < 320; x += 40){ c.beginPath(); c.moveTo(x + .5, 18); c.lineTo(x + .5, 180); c.stroke(); }
-  for(let y = 58; y < 180; y += 40){ c.beginPath(); c.moveTo(0, y + .5); c.lineTo(320, y + .5); c.stroke(); }
+  P.damier(c, 0, 18, 320, 162, 40, "#000091", "#000082");
   [[44,102,"#18753C"],[84,102,"#0078a8"],[124,102,"#6a2ea0"],[124,62,"#E1000F"]].forEach(([x, y, f]) => {
     P.biseau(c, x, y, 30, 30, 4, f);
     c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(x + .5, y + .5, 29, 29);
   });
+  P.lueur(c, 179, 77, 36, "#FFCA00", .3);
   P.tete(c, 164, 62, 30, {x:1, y:0}, true);
   P.biseau(c, 244, 62, 30, 30, 4, "#000091");
   c.strokeStyle = "rgba(255,255,255,.28)"; c.strokeRect(244.5, 62.5, 29, 29);
@@ -210,7 +236,9 @@
     obs.forEach(([x, w, l]) => { P.biseau(c, x, y + 4, w, 20, 2, f); P.texteAjuste(c, l, x + w / 2, y + 10, w - 8, 1.2, t, "center"); });
   });
   P.biseau(c, 0, 154, 320, 26, 2, "#4a4a4a", true);
-  P.grille(c, ["........",".TTT....","FFFFFFF.","FBBBBBF.","FFFFFFF.","FBBBBBF.","FFFFFFF.","........"], 148, 152, 26, {T:"#c9950c",F:"#FFCA00",B:"#fff3c4"});
+  const DOSSIER = ["........",".TTT....","FFFFFFF.","FBBBBBF.","FFFFFFF.","FBBBBBF.","FFFFFFF.","........"];
+  const PAL_DOSSIER = {T:"#c9950c",F:"#FFCA00",B:"#fff3c4"};
+  P.grille(c, DOSSIER, 148, 152, 26, PAL_DOSSIER);
   // support
   c = toile("vig-support");
   for(let i = 0; i < 6; i++){
@@ -218,15 +246,82 @@
     P.biseau(c, x, y, 96, 68, 2, "#1b1e4a", true);
     c.fillStyle = "#08082a"; c.fillRect(x + 14, y + 50, 68, 10);
   }
-  const tk = (i, chemise, label) => {
+  const tk = (i, chemise, bulle, enc, label) => {
     const x = 8 + (i % 3) * 104, y = 26 + Math.floor(i / 3) * 76;
     P.agent(c, x + 48 - 16, y + 20, 32, chemise);
-    P.biseau(c, x + 8, y + 6, 80, 12, 1, chemise);
-    P.texteAjuste(c, label, x + 48, y + 9, 72, 1, chemise === "#E1000F" ? "#ffffff" : "#161616", "center");
+    P.biseau(c, x + 8, y + 6, 80, 12, 1, bulle);
+    P.texteAjuste(c, label, x + 48, y + 9, 72, 1, enc, "center");
   };
-  tk(1, "#ffffff", "BUG CSS"); tk(3, "#FFCA00", "ACCUEIL HS"); tk(5, "#E1000F", "CABINET");
+  tk(1, "#6a2ea0", "#ffffff", "#161616", "BUG CSS");
+  tk(3, "#ffffff", "#0078a8", "#ffffff", "ACCUEIL HS");
+  tk(5, "#FFCA00", "#E1000F", "#ffffff", "CABINET");
 
-  // Tableau des scores et pseudo, lus dans le localStorage de ce navigateur.
+  /* ---------- enseigne : titre pixel et mode attente ---------- */
+  // Un petit plateau qui tourne tout seul, comme une borne qui attend le
+  // joueur : le serpent traverse, la balle rebondit sur le chef de projet,
+  // un ticket sort d'un guichet. Coupe si l'utilisateur prefere moins
+  // d'animation.
+  const ens = document.getElementById("enseigne");
+  const ctx = ens.getContext("2d");
+  const EW = 1120, EH = 150;
+  const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function dimEnseigne(){
+    const cssW = ens.clientWidth || EW, cssH = cssW * EH / EW;
+    ens.width = Math.round(cssW * dpr); ens.height = Math.round(cssH * dpr);
+    ctx.setTransform(cssW / EW * dpr, 0, 0, cssW / EW * dpr, 0, 0);
+  }
+  const FAM = ["#6a2ea0","#18753C","#0078a8","#E1000F","#ffffff","#FFCA00"];
+  function dessinerEnseigne(t){
+    P.damier(ctx, 0, 0, EW, EH, 30, "#000091", "#000082");
+    // titre
+    P.texte(ctx, "MIWEB GAMES", 24, 30, 6, "#FFCA00");
+    P.texte(ctx, "QUATRE JEUX SUR LES COULISSES D'UN PROJET WEB", 24, 86, 1.5, "#c9c9ff");
+    P.texte(ctx, "INSÉREZ UN DOSSIER", 24, 108, 1.5, Math.floor(t / 600) % 2 ? "#8f8fd8" : "#ffffff");
+    // scene d'attente a droite
+    const x0 = 560;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x0, 0, EW - x0, EH); ctx.clip();
+    // serpent qui traverse
+    const CELL = 26, avance = (t / 110) % (EW - x0 + 12 * CELL);
+    for(let i = 9; i >= 0; i--){
+      const x = x0 - 12 * CELL + avance - i * CELL, y = 22 + Math.round(Math.sin(t / 500 + i * .6) * 2) * 2;
+      if(i === 0){ P.lueur(ctx, x + CELL / 2, y + CELL / 2, CELL * 1.3, "#FFCA00", .3); P.tete(ctx, x + 1, y + 1, CELL - 2, {x:1, y:0}, Math.floor(t / 380) % 4 === 0); }
+      else {
+        P.biseau(ctx, x + 2, y + 2, CELL - 4, CELL - 4, CELL / 8, FAM[i % FAM.length]);
+        ctx.strokeStyle = "rgba(255,255,255,.28)"; ctx.lineWidth = 1; ctx.strokeRect(x + 2.5, y + 2.5, CELL - 5, CELL - 5);
+      }
+    }
+    // balle et barre
+    const bx = x0 + 120 + Math.sin(t / 900) * 90, by = 100 - Math.abs(Math.sin(t / 380)) * 46;
+    P.biseau(ctx, x0 + 70, 118, 110, 12, 3, "#ffffff");
+    ctx.fillStyle = "#E1000F"; ctx.fillRect(x0 + 73, 127, 104, 3);
+    P.agent(ctx, x0 + 78, 100, 18, "#FFCA00");
+    P.lueur(ctx, bx, by, 20, "#FFCA00", .4);
+    P.balle(ctx, bx, by, 7);
+    // briques
+    [["#ffffff","RGAA"],["#E1000F","BUG"],["#FFCA00","COPIL"]].forEach(([f, l], i) => {
+      const x = x0 + 300 + i * 84;
+      P.biseau(ctx, x, 50, 76, 22, 3, f);
+      P.texteAjuste(ctx, l, x + 38, 56, 64, 1.5, f === "#ffffff" ? "#000091" : f === "#FFCA00" ? "#161616" : "#ffffff", "center");
+    });
+    // guichet et ticket
+    const gx = x0 + 330, gy = 102;
+    P.biseau(ctx, gx, gy, 200, 44, 3, "#1b1e4a", true);
+    ctx.fillStyle = "#08082a"; ctx.fillRect(gx + 60, gy + 30, 80, 10);
+    const h = Math.max(0, Math.min(1, (Math.sin(t / 1400) + .6) * 1.4));
+    ctx.save(); ctx.beginPath(); ctx.rect(gx, gy - 30, 200, 62); ctx.clip();
+    P.agent(ctx, gx + 100 - 15, gy + 32 - 30 * h, 30, "#0078a8");
+    ctx.restore();
+    if(h > .7){ P.biseau(ctx, gx + 52, gy - 26, 96, 14, 1, "#ffffff"); P.texte(ctx, "BUG CSS", gx + 100, gy - 22, 1.2, "#161616", "center"); }
+    ctx.restore();
+    P.cadre(ctx, 0, 0, EW, EH, 3);
+  }
+  dimEnseigne();
+  window.addEventListener("resize", dimEnseigne);
+  if(reduit) dessinerEnseigne(0);
+  else (function boucle(now){ dessinerEnseigne(now); requestAnimationFrame(boucle); })(0);
+
+  /* ---------- pseudo et tableau des scores ---------- */
   const inp = document.getElementById("pseudo"), ok = document.getElementById("pseudo-ok");
   inp.value = Arcade.scores.pseudo();
   document.getElementById("form-pseudo").addEventListener("submit", e => {
@@ -241,6 +336,20 @@
       "Le tableau partagé est injoignable : voici les scores de ce navigateur seulement.";
     Arcade.scores.JEUX.forEach(j => {
       const l = (tous[j.cle] || []).slice(0, 5);
+      // record sur la card
+      const card = document.querySelector('.card[data-jeu="' + j.cle + '"] .valeur');
+      if(card){
+        card.innerHTML = "";
+        if(l.length){
+          const b = document.createElement("b"); b.textContent = l[0].score + " ";
+          const q = document.createElement("span"); q.textContent = "· " + l[0].nom;
+          card.appendChild(b); card.appendChild(q);
+        } else {
+          const v = document.createElement("span"); v.className = "vide"; v.textContent = "à établir";
+          card.appendChild(v);
+        }
+      }
+      // tableau
       const bloc = document.createElement("div");
       bloc.className = "bloc";
       const h = document.createElement("h3"); h.textContent = j.nom;

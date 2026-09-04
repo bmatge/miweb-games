@@ -17,7 +17,7 @@ En ligne : <https://miweb-games.lab.miweb.run>
 ## Structure
 
 ```
-index.html          page d'accueil : une card par jeu, mise en page claire autonome
+index.html          page d'accueil : enseigne animée, une card par jeu, tableau des scores
 assets/arcade.css   coquille des jeux (salle d'arcade sombre : en-tête, HUD, scène, overlay)
 assets/arcade.js    plein écran, inclinaison, cadrage et sprites pixel (Arcade.pix)
 casse-brique/       jeu 1
@@ -28,8 +28,9 @@ support/            jeu 4 (canvas 800×490)
 
 Chaque jeu reste autonome : son moteur vit dans son `index.html`. Sont mutualisés la coquille
 visuelle, les sprites, et trois comportements transverses (plein écran, inclinaison, cadrage).
-L'accueil ne charge pas `arcade.css` : il garde une mise en page claire et institutionnelle,
-et n'emprunte à `arcade.js` que les sprites pour ses vignettes.
+L'accueil partage la même salle d'arcade : une enseigne dessinée au canvas (titre en police pixel
+et mode attente façon borne, figé si l'utilisateur préfère moins d'animation), une card par jeu
+avec sa vignette dessinée par les mêmes sprites et le record partagé, puis le tableau des scores.
 
 ## Direction artistique
 
@@ -65,7 +66,7 @@ partie). Le fond est peint plus large que le canvas pour que la secousse ne déc
 
 Le fond bleu `#000091` et les couleurs de familles sont conservés : c'est l'identité des
 plateaux. La coquille autour, elle, ne suit plus le DSFR — palette sombre, monospace système
-pour les compteurs. Seul l'accueil reste dans le registre institutionnel.
+pour les compteurs, accueil compris.
 
 ## Ligne de flottaison et deux mises en page
 
