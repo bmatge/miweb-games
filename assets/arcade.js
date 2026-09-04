@@ -1,5 +1,5 @@
 /**
-* Socle commun aux jeux de miweb-games : plein ecran, inclinaison, cadrage et
+ * Socle commun aux jeux de miweb-games : plein ecran, inclinaison, cadrage et
  * sprites pixel (Arcade.pix).
  * Aucune dependance, expose un seul global `Arcade`.
  */
