@@ -44,6 +44,36 @@
       basculer();
     });
 
+    // Sur iPhone, Safari n'expose pas l'API et garde ses barres : le repli
+    // agrandit le plateau, sans plus. Le seul vrai plein ecran est la page
+    // ajoutee a l'ecran d'accueil (mode web app). On le dit une fois.
+    var iphone = /iPhone|iPod/.test(global.navigator.userAgent);
+    var webApp = global.navigator.standalone === true ||
+      (global.matchMedia && global.matchMedia("(display-mode: standalone)").matches);
+    var CLE_ASTUCE = "miweb-games:astuce-ios";
+    var astuce = null;
+    if (!natif && iphone && !webApp) {
+      var vue = false;
+      try { vue = !!localStorage.getItem(CLE_ASTUCE); } catch (e) {}
+      if (!vue) {
+        astuce = document.createElement("div");
+        astuce.className = "bp-astuce";
+        var txt = document.createElement("span");
+        txt.textContent = "Safari garde ses barres sur iPhone. Pour jouer en vrai plein écran : Partager, puis « Sur l'écran d'accueil », et lancez le jeu depuis l'icône.";
+        var ok = document.createElement("button");
+        ok.type = "button"; ok.className = "bp-sortie"; ok.textContent = "Compris";
+        ok.addEventListener("click", function (e) {
+          e.stopPropagation();
+          astuce.remove(); astuce = null;
+          el.style.paddingBottom = "";
+          try { localStorage.setItem(CLE_ASTUCE, "1"); } catch (e2) {}
+          global.dispatchEvent(new Event("resize"));   // le plateau reprend la place
+        });
+        astuce.appendChild(txt); astuce.appendChild(ok);
+        el.appendChild(astuce);
+      }
+    }
+
     // `.plein` est posee dans les DEUX modes, natif comme repli. Elle porte la
     // mise en page plein ecran (centrage, letterbox) ET l'affichage de la
     // barre : sans elle en mode natif, il n'y avait aucun bouton de sortie.
@@ -60,6 +90,7 @@
       // le haut du plateau en paysage, quand le canvas occupe toute la hauteur.
       // On mesure apres la pose de la classe (display:none donne 0).
       el.style.paddingTop = on ? barre.offsetHeight + "px" : "";
+      el.style.paddingBottom = on && astuce ? astuce.offsetHeight + "px" : "";
       majBouton();
       if (onChange) onChange(on);
     }
@@ -114,8 +145,8 @@
       actif: actif,
       stat: function (t) { bStat.textContent = t; },
       message: function (t) { bMsg.textContent = t; },
-      /** Hauteur occupee par la barre, a retrancher de la place disponible. */
-      hauteur: function () { return actif() ? barre.offsetHeight : 0; }
+      /** Hauteur occupee par la barre (et l'astuce iPhone), a retrancher. */
+      hauteur: function () { return actif() ? barre.offsetHeight + (astuce ? astuce.offsetHeight : 0) : 0; }
     };
   }
 
@@ -228,6 +259,21 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Viewport visuel                                                     */
+  /* ------------------------------------------------------------------ */
+
+  /**
+   * Taille reellement visible de la fenetre. Safari iOS surestime
+   * `innerHeight` en paysage quand ses barres sont affichees : un plateau
+   * calcule dessus depasse en bas de l'ecran. `visualViewport` dit vrai.
+   */
+  function viewport() {
+    var vv = global.visualViewport;
+    if (vv && vv.height) return { w: vv.width, h: vv.height };
+    return { w: global.innerWidth, h: global.innerHeight };
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Cadrage : le plateau tient au-dessus de la ligne de flottaison       */
   /* ------------------------------------------------------------------ */
 
@@ -254,7 +300,7 @@
     // En mode lateral, le journal est a cote du plateau et ne prend pas de
     // hauteur ; la colonne laterale prend de la largeur.
     var bas = (!lateral && journal) ? journal.offsetHeight + 8 : 0;
-    var dispoH = global.innerHeight - haut - bas - 12;
+    var dispoH = viewport().h - haut - bas - 12;
     var dispoW = jeu.clientWidth;
     if (lateral) {
       var aside = jeu.querySelector(".lateral");
@@ -893,5 +939,5 @@
     damier: damier, cadre: cadre, lueur: lueur
   };
 
-  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, journal: journal, scores: scores, pix: pix };
+  global.Arcade = { plein: plein, inclinaison: inclinaison, cadrer: cadrer, journal: journal, scores: scores, viewport: viewport, pix: pix };
 })(window);

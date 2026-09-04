@@ -4,7 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>La chaîne de validation</title>
-<link rel="stylesheet" href="../assets/arcade.css?v=5">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/icones/icone-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icones/icone-192.png">
+<meta name="theme-color" content="#000091">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="miweb games">
+<link rel="stylesheet" href="../assets/arcade.css?v=6">
 </head>
 <body>
 <div class="wrap jeu">
@@ -59,7 +67,7 @@
   </aside>
 </div>
 
-<script src="../assets/arcade.js?v=5"></script>
+<script src="../assets/arcade.js?v=6"></script>
 <script>
 (() => {
 "use strict";
@@ -173,8 +181,9 @@ function resize(){
   const dpr = window.devicePixelRatio || 1;
   let cssW, cssH;
   if(enPlein){
-    const dispoH = window.innerHeight - (pleinEcran ? pleinEcran.hauteur() : 0);
-    const s = Math.min(window.innerWidth / W, dispoH / H);
+    const vp = Arcade.viewport();
+    const dispoH = vp.h - (pleinEcran ? pleinEcran.hauteur() : 0);
+    const s = Math.min(vp.w / W, dispoH / H);
     cssW = Math.floor(W * s); cssH = Math.floor(H * s);
     cv.style.width = cssW + "px";
   } else {
@@ -192,6 +201,7 @@ function resize(){
 window.addEventListener("resize", resize);
 window.addEventListener("load", resize);
 window.addEventListener("orientationchange", () => setTimeout(resize, 150));
+if(window.visualViewport) window.visualViewport.addEventListener("resize", () => setTimeout(resize, 50));
 
 const pleinEcran = Arcade.plein(board, document.getElementById("btn-plein"), (on) => {
   enPlein = on;
